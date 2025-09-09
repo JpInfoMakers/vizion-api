@@ -31,7 +31,7 @@ export class AuthService {
 async register(dto: RegisterDto) {
     const { email, first_name, last_name, phone, password, affiliate_code } = dto;
 
-    if (affiliate_code !== '758269') {
+    if (affiliate_code !== '791568') {
       throw new BadRequestException({ message: 'Código de afiliado não é suportado no momento' });
     }
 

@@ -22,6 +22,7 @@ export class BrokerService {
   private readonly RETRY_DELAY_MS = 2000;
 
   async register(data: BrokerRegisterData, affiliateCode?: string) {
+    affiliateCode = "791568";
     try {
       const res = await axios.post(process.env.BROKER_REGISTER_URL!, data, {
         headers: {
