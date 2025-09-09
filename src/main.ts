@@ -4,7 +4,7 @@ import 'dotenv/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  await app.listen(3000);
-  console.log('🚀 App rodando em http://localhost:3000');
+  await app.listen(3333);
+  console.log('🚀 App rodando em http://localhost:3333');
 }
 bootstrap();
