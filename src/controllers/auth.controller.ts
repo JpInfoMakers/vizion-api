@@ -6,7 +6,7 @@ import { RefreshDto } from '../dtos/refresh.dto';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 
-@Controller('auth')
+@Controller('v1/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) { }
 

@@ -5,7 +5,7 @@ import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 
 @UseGuards(JwtAuthGuard)
-@Controller('trade/positions')
+@Controller('v1/trade/positions')
 export class PositionsController {
   constructor(private readonly svc: PositionsService) {}
 
