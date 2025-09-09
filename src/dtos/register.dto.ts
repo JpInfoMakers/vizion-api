@@ -18,7 +18,4 @@ export class RegisterDto {
   @MinLength(6)
   password: string;
 
-  @IsOptional()
-  @IsString()
-  affiliate_code?: string;
 }

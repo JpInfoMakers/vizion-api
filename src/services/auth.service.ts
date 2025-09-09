@@ -29,11 +29,7 @@ export class AuthService {
   }
 
 async register(dto: RegisterDto) {
-    const { email, first_name, last_name, phone, password, affiliate_code } = dto;
-
-    if (affiliate_code !== '791568') {
-      throw new BadRequestException({ message: 'Código de afiliado não é suportado no momento' });
-    }
+    const { email, first_name, last_name, phone, password } = dto;
 
     const exists = await this.users.findByEmail(email);
     if (exists) throw new BadRequestException('E-mail já cadastrado');
@@ -47,7 +43,7 @@ async register(dto: RegisterDto) {
       timezone: 'America/Sao_Paulo',
     };
 
-    const register_response = await this.broker.register(registerPayload, affiliate_code);
+    const register_response = await this.broker.register(registerPayload);
     if (!register_response || register_response.code !== 'success') {
       throw new BadRequestException({
         message: 'Falha ao registrar no provedor externo',
