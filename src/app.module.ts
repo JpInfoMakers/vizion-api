@@ -8,8 +8,8 @@ import { AuthModule } from './modules/auth.module';
 
 @Module({
   imports: [
-    AuthModule,
     ConfigModule.forRoot({ isGlobal: true }),
+    AuthModule,
     TypeOrmModule.forRootAsync({
       useFactory: () => ({
         type: 'postgres',
