@@ -11,12 +11,13 @@ async function bootstrap() {
     new FastifyAdapter({ bodyLimit: 10 * 1024 * 1024 })
   );
 
+
   app.enableCors({
-    origin: [
-      '*'
-      // 'http://localhost:9002',
-      // 'https://tradervizion.com',
-    ],
+     origin: '*',
+    // origin: [
+    //   'http://localhost:9002',
+    //   'https://tradervizion.com',
+    // ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
