@@ -7,6 +7,7 @@ import { UserService } from './user.service';
 import { ClientSdk, SsidAuthMethod } from '@tradecodehub/client-sdk-js';
 import { tradeEnv } from 'src/config/trade.config';
 import { BrokerService } from './broker.service';
+import { UpdateUserDto } from 'src/dtos/update-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -14,7 +15,7 @@ export class AuthService {
     private readonly users: UserService,
     private readonly jwt: JwtService,
     private readonly broker: BrokerService
-  ) {}
+  ) { }
 
   private issueTokens(payload: { sub: string; email: string }) {
     const accessToken = this.jwt.sign(payload, {
@@ -28,7 +29,7 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-async register(dto: RegisterDto) {
+  async register(dto: RegisterDto) {
     const { email, first_name, last_name, phone, password } = dto;
 
     const exists = await this.users.findByEmail(email);
@@ -94,6 +95,10 @@ async register(dto: RegisterDto) {
     await this.users.updateRefreshToken(user.id, tokens.refreshToken);
 
     return { user: sanitizeUser(user), ...tokens };
+  }
+
+  updateUser(currentUserId: string, targetUserId: string, dto: UpdateUserDto) {
+    return this.users.updateUser(currentUserId, targetUserId, dto);
   }
 
   async loginWithSsid(ssid: string) {
@@ -168,5 +173,5 @@ async register(dto: RegisterDto) {
     const user = await this.users.findById(userId);
     return user ? sanitizeUser(user) : null;
   }
-  
+
 }

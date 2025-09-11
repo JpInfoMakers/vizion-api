@@ -1,14 +1,20 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import * as crypto from 'crypto';
 import { UserEntity } from 'src/entity/user.entity';
+import { UpdateUserDto } from 'src/dtos/update-user.dto';
+import { ImageService } from './image.service';
 
 @Injectable()
 export class UserService {
-  constructor(@InjectRepository(UserEntity) private readonly repo: Repository<UserEntity>) {}
+  constructor(
+    @InjectRepository(UserEntity)
+    private readonly repo: Repository<UserEntity>,
+    private readonly imageService: ImageService
+  ) {}
 
   async create(data: {
     email: string;
@@ -33,6 +39,40 @@ export class UserService {
   async update(id: string, patch: Partial<UserEntity>) {
     await this.repo.update({ id }, patch);
     return this.findById(id);
+  }
+
+   async updateUser(currentUserId: string, targetUserId: string, dto: UpdateUserDto) {
+    if (currentUserId !== targetUserId) {
+      throw new ForbiddenException('Você só pode alterar seu próprio perfil.');
+    }
+
+    const user = await this.repo.findOne({ where: { id: targetUserId } });
+    if (!user) throw new NotFoundException('Usuário não encontrado');
+
+    if (dto.photoBase64) {
+      const result = await this.imageService.saveBase64(dto.photoBase64, dto.photoMimeType || 'image/png', 'avatars');
+      user['photoURL'] = result.publicUrl;
+    } else if (dto.photoURL) {
+      user['photoURL'] = dto.photoURL;
+    }
+
+    if (dto.firstName !== undefined) user.firstName = dto.firstName;
+    if (dto.lastName  !== undefined) user.lastName  = dto.lastName;
+    if (dto.language  !== undefined) user['language'] = dto.language;
+    if (dto.baseCurrency !== undefined) user['baseCurrency'] = dto.baseCurrency;
+
+    await this.repo.save(user);
+
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      photoURL: user['photoURL'] ?? null,
+      language: user['language'] ?? null,
+      baseCurrency: user['baseCurrency'] ?? null,
+      updatedAt: user.updatedAt,
+    };
   }
 
   findByEmail(email: string) {

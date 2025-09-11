@@ -1,10 +1,11 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
 import { LoginDto } from '../dtos/login.dto';
 import { RegisterDto } from '../dtos/register.dto';
 import { RefreshDto } from '../dtos/refresh.dto';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
+import { UpdateUserDto } from 'src/dtos/update-user.dto';
 
 @Controller('v1/auth')
 export class AuthController {
@@ -52,5 +53,15 @@ export class AuthController {
   loginBroker(@Body() dto: LoginDto) {
     return this.authService.loginBroker(dto);
   }
-  
+
+  @Put(':id')
+  @HttpCode(HttpStatus.OK)
+  update(
+    @CurrentUser('id') currentUserId: string,
+    @Param('id') targetUserId: string,
+    @Body() dto: UpdateUserDto,
+  ) {
+    return this.authService.updateUser(currentUserId, targetUserId, dto);
+  }
+
 }
