@@ -7,6 +7,7 @@ import * as crypto from 'crypto';
 import { UserEntity } from '../entity/user.entity';
 import { UpdateUserDto } from '../dtos/update-user.dto';
 import { ImageService } from './image.service';
+import type { File as FastifyFile } from '@nest-lab/fastify-multer';
 
 @Injectable()
 export class UserService {
@@ -41,7 +42,7 @@ export class UserService {
     return this.findById(id);
   }
 
-  async updateUser(currentUserId: string, targetUserId: string, dto: UpdateUserDto, photo?: Express.Multer.File) {
+  async updateUser(currentUserId: string, targetUserId: string, dto: UpdateUserDto, photo?: FastifyFile) {
     if (currentUserId !== targetUserId) {
       throw new ForbiddenException('Você só pode alterar seu próprio perfil.');
     }

@@ -5,10 +5,12 @@ import { TradeModule } from './modules/trade.module';
 import { UserEntity } from './entity/user.entity';
 import { UserModule } from './modules/user.module';
 import { AuthModule } from './modules/auth.module';
+import { FastifyMulterModule } from '@nest-lab/fastify-multer';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    FastifyMulterModule,
     AuthModule,
     TypeOrmModule.forRootAsync({
       useFactory: () => ({

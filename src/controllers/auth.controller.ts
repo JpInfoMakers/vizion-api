@@ -6,9 +6,8 @@ import { RefreshDto } from '../dtos/refresh.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { UpdateUserDto } from '../dtos/update-user.dto';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { Express } from 'express';
-import { Multer } from 'multer';
+import { FileInterceptor } from '@nest-lab/fastify-multer';
+import type { File as FastifyFile } from '@nest-lab/fastify-multer';
 
 @Controller('v1/auth')
 export class AuthController {
@@ -57,16 +56,17 @@ export class AuthController {
     return this.authService.loginBroker(dto);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('photo'))
-  @Put(':id')
-  update(
-    @CurrentUser('id') currentUserId: string,
-    @Param('id') targetUserId: string,
-    @UploadedFile() file: Express.Multer.File,
-    @Body() dto?: UpdateUserDto,
-  ) {
-    return this.authService.updateUser(currentUserId, targetUserId, dto, file);
-  }
+@UseGuards(JwtAuthGuard)
+@UseInterceptors(FileInterceptor('photo'))
+@Put(':id')
+update(
+  @CurrentUser('id') currentUserId: string,
+  @Param('id') targetUserId: string,
+  @UploadedFile() file: FastifyFile,
+  @Body() dto?: UpdateUserDto,
+) {
+  console.log('file?', !!file, file?.mimetype, file?.size);
+  return this.authService.updateUser(currentUserId, targetUserId, dto, file);
+}
   
 }

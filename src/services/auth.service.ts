@@ -8,7 +8,7 @@ import { ClientSdk, SsidAuthMethod } from '@tradecodehub/client-sdk-js';
 import { tradeEnv } from '../config/trade.config';
 import { BrokerService } from './broker.service';
 import { UpdateUserDto } from '../dtos/update-user.dto';
-
+import type { File as  FastifyFile } from '@nest-lab/fastify-multer';
 @Injectable()
 export class AuthService {
   constructor(
@@ -97,7 +97,7 @@ export class AuthService {
     return { user: sanitizeUser(user), ...tokens };
   }
 
-  updateUser(currentUserId: string, targetUserId: string, dto: UpdateUserDto,  photo?: Express.Multer.File) {
+  updateUser(currentUserId: string, targetUserId: string, dto: UpdateUserDto,  photo?: FastifyFile) {
     return this.users.updateUser(currentUserId, targetUserId, dto, photo);
   }
 

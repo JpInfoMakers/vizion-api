@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
+import type { File as FastifyFile } from '@nest-lab/fastify-multer';
 
 @Injectable()
 export class ImageService {
@@ -26,7 +27,7 @@ export class ImageService {
     return { publicUrl, filename, mime: photoMimeType, size: buffer.length };
   }
 
-  async saveFile(file: Express.Multer.File, subfolder = 'avatars') {
+  async saveFile(file: FastifyFile, subfolder = 'avatars') {
     const ext = file.originalname.split('.').pop();
     const filename = `${randomUUID()}.${ext}`;
     const dir = await this.ensureDir(subfolder);
