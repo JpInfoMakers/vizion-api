@@ -5,7 +5,7 @@ import { UserService } from '../services/user.service';
 import { sanitizeUser } from '../shared/utils';
 
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy) {
+export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(private readonly usersService: UserService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -14,16 +14,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  /**
-   * Executado após o token ser validado.
-   * @param payload contém { sub, email, iat, exp }
-   */
   async validate(payload: any) {
     const user = await this.usersService.findById(payload.sub);
-    if (!user) {
-      throw new UnauthorizedException('Usuário não encontrado');
-    }
+    if (!user) throw new UnauthorizedException('Usuário não encontrado');
     return sanitizeUser(user);
   }
-  
 }
