@@ -25,4 +25,16 @@ export class ImageService {
     const publicUrl = `https://tradervizion.com/uploads/${subfolder}/${filename}`;
     return { publicUrl, filename, mime: photoMimeType, size: buffer.length };
   }
+
+  async saveFile(file: Express.Multer.File, subfolder = 'avatars') {
+    const ext = file.originalname.split('.').pop();
+    const filename = `${randomUUID()}.${ext}`;
+    const dir = await this.ensureDir(subfolder);
+    const filepath = path.join(dir, filename);
+
+    await fs.writeFile(filepath, file.buffer, { mode: 0o644 });
+    const publicUrl = `https://tradervizion.com/uploads/${subfolder}/${filename}`;
+    return { publicUrl, filename, mime: file.mimetype, size: file.size };
+  }
+
 }

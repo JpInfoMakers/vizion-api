@@ -37,9 +37,19 @@ export class UserEntity {
   @Column({ type: 'varchar', length: 255, nullable: true })
   ssid: string | null;
 
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  photoURL: string | null;
+
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  language: string | null;
+
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  baseCurrency: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
+  
 }

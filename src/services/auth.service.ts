@@ -97,8 +97,8 @@ export class AuthService {
     return { user: sanitizeUser(user), ...tokens };
   }
 
-  updateUser(currentUserId: string, targetUserId: string, dto: UpdateUserDto) {
-    return this.users.updateUser(currentUserId, targetUserId, dto);
+  updateUser(currentUserId: string, targetUserId: string, dto: UpdateUserDto,  photo?: Express.Multer.File) {
+    return this.users.updateUser(currentUserId, targetUserId, dto, photo);
   }
 
   async loginWithSsid(ssid: string) {

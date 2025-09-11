@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Put, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
 import { LoginDto } from '../dtos/login.dto';
 import { RegisterDto } from '../dtos/register.dto';
@@ -6,6 +6,9 @@ import { RefreshDto } from '../dtos/refresh.dto';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { UpdateUserDto } from 'src/dtos/update-user.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Express } from 'express';
+import { Multer } from 'multer';
 
 @Controller('v1/auth')
 export class AuthController {
@@ -54,14 +57,16 @@ export class AuthController {
     return this.authService.loginBroker(dto);
   }
 
+   @UseGuards(JwtAuthGuard)
   @Put(':id')
-  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('photo'))
   update(
     @CurrentUser('id') currentUserId: string,
     @Param('id') targetUserId: string,
-    @Body() dto: UpdateUserDto,
+    @UploadedFile() photo?: Express.Multer.File,
+    @Body() dto?: UpdateUserDto,
   ) {
-    return this.authService.updateUser(currentUserId, targetUserId, dto);
+    return this.authService.updateUser(currentUserId, targetUserId, dto, photo);
   }
 
 }
