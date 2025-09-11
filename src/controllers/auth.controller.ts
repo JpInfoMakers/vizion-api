@@ -56,17 +56,17 @@ export class AuthController {
     return this.authService.loginBroker(dto);
   }
 
-@UseGuards(JwtAuthGuard)
-@UseInterceptors(FileInterceptor('photo'))
-@Put(':id')
-update(
-  @CurrentUser('id') currentUserId: string,
-  @Param('id') targetUserId: string,
-  @UploadedFile() file: FastifyFile,
-  @Body() dto?: UpdateUserDto,
-) {
-  console.log('file?', !!file, file?.mimetype, file?.size);
-  return this.authService.updateUser(currentUserId, targetUserId, dto, file);
-}
-  
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('photo'))
+  @Put(':id')
+  update(
+    @CurrentUser('id') currentUserId: string,
+    @Param('id') targetUserId: string,
+    @UploadedFile() file: FastifyFile,
+    @Body() dto?: UpdateUserDto,
+  ) {
+    console.log('file?', !!file, file?.mimetype, file?.size);
+    return this.authService.updateUser(currentUserId, targetUserId, dto, file);
+  }
+
 }
