@@ -57,16 +57,16 @@ export class AuthController {
     return this.authService.loginBroker(dto);
   }
 
-   @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Put(':id')
   @UseInterceptors(FileInterceptor('photo'))
   update(
     @CurrentUser('id') currentUserId: string,
     @Param('id') targetUserId: string,
-    @UploadedFile() photo?: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File,
     @Body() dto?: UpdateUserDto,
   ) {
-    return this.authService.updateUser(currentUserId, targetUserId, dto, photo);
+    return this.authService.updateUser(currentUserId, targetUserId, dto, file);
   }
 
 }

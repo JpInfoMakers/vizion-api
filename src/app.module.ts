@@ -8,6 +8,7 @@ import { AuthModule } from './modules/auth.module';
 
 @Module({
   imports: [
+    AuthModule,
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       useFactory: () => ({
@@ -23,7 +24,6 @@ import { AuthModule } from './modules/auth.module';
       }),
     }),
     UserModule,
-    AuthModule,
     TradeModule
   ],
 })
