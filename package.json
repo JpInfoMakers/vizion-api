@@ -15,19 +15,20 @@
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^10.4.20",
+    "@nestjs/platform-fastify": "^10.4.20",
     "@nestjs/typeorm": "^11.0.0",
     "@tradecodehub/client-sdk-js": "^1.0.0",
     "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
     "class-validator": "^0.14.2",
     "dotenv": "^16.4.5",
+    "module-alias": "^2.2.3",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "typeorm": "^0.3.26",
-    "module-alias": "^2.2.3"
+    "typeorm": "^0.3.26"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
