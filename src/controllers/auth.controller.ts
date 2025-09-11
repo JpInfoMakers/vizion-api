@@ -57,6 +57,7 @@ export class AuthController {
     return this.authService.loginBroker(dto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('photo'))
   @Put(':id')
   update(
