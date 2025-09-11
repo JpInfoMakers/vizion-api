@@ -4,8 +4,8 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import * as crypto from 'crypto';
-import { UserEntity } from 'src/entity/user.entity';
-import { UpdateUserDto } from 'src/dtos/update-user.dto';
+import { UserEntity } from '../entity/user.entity';
+import { UpdateUserDto } from '../dtos/update-user.dto';
 import { ImageService } from './image.service';
 
 @Injectable()

@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserEntity } from 'src/entity/user.entity';
-import { UserService } from 'src/services/user.service';
+
+import { UserService } from '../services/user.service';
 import { ImageModule } from './image.module';
+import { UserEntity } from '../entity/user.entity';
 
 @Module({
   imports: [

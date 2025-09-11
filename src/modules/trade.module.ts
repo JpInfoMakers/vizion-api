@@ -1,19 +1,19 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserEntity } from 'src/entity/user.entity';
+import { UserEntity } from '../entity/user.entity';
 
-import { TradeService } from 'src/services/trade.service';
-import { BalancesService } from 'src/services/balances.service';
-import { QuotesService } from 'src/services/quotes.service';
-import { BlitzOptionsService } from 'src/services/blitz-options.service';
-import { TurboOptionsService } from 'src/services/turbo-options.service';
-import { BinaryOptionsService } from 'src/services/binary-options.service';
-import { DigitalOptionsService } from 'src/services/digital-options.service';
-import { PositionsService } from 'src/services/positions.service';
+import { TradeService } from '../services/trade.service';
+import { BalancesService } from '../services/balances.service';
+import { QuotesService } from '../services/quotes.service';
+import { BlitzOptionsService } from '../services/blitz-options.service';
+import { TurboOptionsService } from '../services/turbo-options.service';
+import { BinaryOptionsService } from '../services/binary-options.service';
+import { DigitalOptionsService } from '../services/digital-options.service';
+import { PositionsService } from '../services/positions.service';
 
-import { BalancesController } from 'src/controllers/balances.controller';
-import { QuotesController } from 'src/controllers/quotes.controller';
-import { PositionsController } from 'src/controllers/positions.controller';
+import { BalancesController } from '../controllers/balances.controller';
+import { QuotesController } from '../controllers/quotes.controller';
+import { PositionsController } from '../controllers/positions.controller';
 
 @Module({
   imports: [

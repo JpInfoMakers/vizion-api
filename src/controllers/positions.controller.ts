@@ -1,8 +1,8 @@
 import { Controller, Get, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { InstrumentType } from '@tradecodehub/client-sdk-js';
-import { PositionsService } from 'src/services/positions.service';
-import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
-import { CurrentUser } from 'src/decorators/current-user.decorator';
+import { PositionsService } from '../services/positions.service';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { CurrentUser } from '../decorators/current-user.decorator';
 
 @UseGuards(JwtAuthGuard)
 @Controller('v1/trade/positions')

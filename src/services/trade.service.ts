@@ -2,8 +2,8 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ClientSdk, SsidAuthMethod } from '@tradecodehub/client-sdk-js';
-import { UserEntity } from 'src/entity/user.entity';
-import { tradeEnv } from 'src/config/trade.config';
+import { UserEntity } from '../entity/user.entity';
+import { tradeEnv } from '../config/trade.config';
 
 @Injectable()
 export class TradeService {

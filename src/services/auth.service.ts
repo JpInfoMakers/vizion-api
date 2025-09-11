@@ -2,12 +2,12 @@ import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/
 import { JwtService } from '@nestjs/jwt';
 import { RegisterDto } from '../dtos/register.dto';
 import { LoginDto } from '../dtos/login.dto';
-import { hashPassword, comparePassword, sanitizeUser } from 'src/shared/utils';
+import { hashPassword, comparePassword, sanitizeUser } from '../shared/utils';
 import { UserService } from './user.service';
 import { ClientSdk, SsidAuthMethod } from '@tradecodehub/client-sdk-js';
-import { tradeEnv } from 'src/config/trade.config';
+import { tradeEnv } from '../config/trade.config';
 import { BrokerService } from './broker.service';
-import { UpdateUserDto } from 'src/dtos/update-user.dto';
+import { UpdateUserDto } from '../dtos/update-user.dto';
 
 @Injectable()
 export class AuthService {
