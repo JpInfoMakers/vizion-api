@@ -57,9 +57,8 @@ export class AuthController {
     return this.authService.loginBroker(dto);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Put(':id')
   @UseInterceptors(FileInterceptor('photo'))
+  @Put(':id')
   update(
     @CurrentUser('id') currentUserId: string,
     @Param('id') targetUserId: string,
@@ -68,5 +67,5 @@ export class AuthController {
   ) {
     return this.authService.updateUser(currentUserId, targetUserId, dto, file);
   }
-
+  
 }
