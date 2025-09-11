@@ -6,11 +6,9 @@ import { AuthService } from '../services/auth.service';
 import { BrokerService } from '../services/broker.service';
 import { UserModule } from './user.module';
 import { JwtStrategy } from '../strategies/jwt.strategy';
-import { FastifyMulterModule } from '@nest-lab/fastify-multer';
 
 @Module({
   imports: [
-    FastifyMulterModule,
     UserModule,
     PassportModule.register({ defaultStrategy: 'jwt', session: false }),
     JwtModule.register({
