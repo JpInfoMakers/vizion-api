@@ -19,8 +19,20 @@ export class MarketService {
 
   private wsNow(sdk: ClientSdk) { return sdk.currentTime(); }
 
-  private mapSchedule(ranges?: { from: Date; to: Date }[]) {
-    return ranges?.map(r => ({ from: toIso(r.from), to: toIso(r.to) }));
+  /**
+   * Aceita arrays com { from, to } (Blitz/Turbo/Binary)
+   * ou { open, close } (Digital/Margin) e normaliza para { from, to } em ISO.
+   */
+  private mapSchedule(
+    ranges?:
+      | { from: Date; to: Date }[]
+      | { open: Date; close: Date }[]
+  ) {
+    return ranges?.map((r: any) => {
+      const start: Date = r.from ?? r.open;
+      const end: Date = r.to ?? r.close;
+      return { from: toIso(start), to: toIso(end) };
+    });
   }
 
   private mapBlitz(a: BlitzOptionsActive): ActiveSummaryDto {
@@ -33,6 +45,7 @@ export class MarketService {
       schedule: this.mapSchedule(a.schedule),
     };
   }
+
   private mapTurbo(a: TurboOptionsActive): ActiveSummaryDto {
     return {
       id: a.id,
@@ -43,6 +56,7 @@ export class MarketService {
       schedule: this.mapSchedule(a.schedule),
     };
   }
+
   private mapBinary(a: BinaryOptionsActive): ActiveSummaryDto {
     return {
       id: a.id,
@@ -53,6 +67,7 @@ export class MarketService {
       schedule: this.mapSchedule(a.schedule),
     };
   }
+
   private mapDigital(u: DigitalOptionsUnderlying): ActiveSummaryDto {
     return {
       id: u.activeId,
@@ -61,6 +76,7 @@ export class MarketService {
       schedule: this.mapSchedule(u.schedule),
     };
   }
+
   private mapMargin(u: MarginUnderlying): ActiveSummaryDto {
     return {
       id: u.activeId,
@@ -116,17 +132,15 @@ export class MarketService {
     const opts: any = {
       from: q.from,
       to: q.to,
-      fromId: q.fromId,
-      toId: q.toId,
+      fromId: (q as any).fromId, // caso você tenha incluído no DTO
+      toId: (q as any).toId,
       count: q.count ?? 200,
-      backoff: q.backoff ?? 0,
+      backoff: (q as any).backoff ?? 0,
       onlyClosed: q.onlyClosed ?? true,
       kind: q.kind,
       splitNormalization: q.splitNormalization ?? false,
     };
-    // remove undefined to keep clean
     Object.keys(opts).forEach(k => opts[k] === undefined && delete opts[k]);
-    const res = await candles.getCandles(q.activeId, q.size, opts);
-    return res;
+    return candles.getCandles(q.activeId, q.size, opts);
   }
 }
