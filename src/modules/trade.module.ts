@@ -20,7 +20,7 @@ import { QuotesController } from '../controllers/quotes.controller';
 import { PositionsController } from '../controllers/positions.controller';
 import { MarketController } from '../controllers/market.controller';
 import { StreamController } from '../controllers/stream.controller';
-import { AccessTokenQueryGuard } from 'src/guards/access-token-query.guard';
+import { AccessTokenQueryGuard } from '../guards/access-token-query.guard';
 
 @Module({
   imports: [
