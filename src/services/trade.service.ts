@@ -15,11 +15,8 @@ export class TradeService {
   private async createSdkWithSsid(ssid: string): Promise<ClientSdk> {
     const wsUrl = process.env.BROKER_WS_API_URL;
     const platformId = Number(process.env.BROKER_PLATFORM_ID ?? 1);
-
     if (!wsUrl) throw new UnauthorizedException('WS do broker não configurado');
-
-    const sdk = await ClientSdk.create(wsUrl, platformId, new SsidAuthMethod(ssid));
-    return sdk;
+    return ClientSdk.create(wsUrl, platformId, new SsidAuthMethod(ssid));
   }
 
   private async loginWithSsid(userId: string, ssid: string): Promise<ClientSdk> {
@@ -31,14 +28,16 @@ export class TradeService {
   async getClientForUser(userId: string): Promise<ClientSdk> {
     const user = await this.users.findOne({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('Usuário inválido');
-    if (!user.brokerSsid) throw new UnauthorizedException('Conecte sua conta ao broker');
+
+    const effectiveSsid = (user as any).brokerSsid ?? (user as any).ssid ?? null;
+    if (!effectiveSsid) throw new UnauthorizedException('Conecte sua conta ao broker');
 
     const cached = this.cache.get(userId);
-    if (cached && cached.ssid === user.brokerSsid) return cached.sdk;
+    if (cached && cached.ssid === effectiveSsid) return cached.sdk;
 
     try {
-      return await this.loginWithSsid(userId, user.brokerSsid);
-    } catch (e) {
+      return await this.loginWithSsid(userId, effectiveSsid);
+    } catch {
       this.cache.delete(userId);
       throw new UnauthorizedException('Sessão do broker inválida/expirada');
     }

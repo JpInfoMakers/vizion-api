@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   ClientSdk,
   BlitzOptionsActive,
@@ -12,12 +12,27 @@ import { ActiveKind, ActiveSummaryDto } from '../dtos/actives.dto';
 import { GetCandlesQuery } from '../dtos/candles.dto';
 
 function toIso(d: Date) { return d.toISOString(); }
+function toMs(v?: string | number | null) {
+  if (v === undefined || v === null) return undefined;
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  const n = Number(v);
+  if (Number.isFinite(n)) return n;
+  const p = Date.parse(String(v));
+  return Number.isFinite(p) ? p : undefined;
+}
+function toNum(v: any) {
+  const n = typeof v === 'string' ? Number(v) : v;
+  return Number.isFinite(n) ? Number(n) : undefined;
+}
 
 @Injectable()
 export class MarketService {
   constructor(private readonly trade: TradeService) {}
 
-  private wsNow(sdk: ClientSdk) { return sdk.currentTime(); }
+  private async wsNow(sdk: ClientSdk) {
+    const maybe = await sdk.currentTime();
+    return maybe instanceof Date ? maybe : new Date(maybe);
+  }
 
   private mapSchedule(
     ranges?: { from: Date; to: Date }[] | { open: Date; close: Date }[]
@@ -78,36 +93,45 @@ export class MarketService {
 
   async listActives(userId: string, kind: ActiveKind, at?: string): Promise<ActiveSummaryDto[]> {
     const sdk = await this.trade.getClientForUser(userId);
-    const now = at ? new Date(at) : this.wsNow(sdk);
+    const baseNow = await this.wsNow(sdk);
+    const when = at ? new Date(at) : baseNow;
+    if (Number.isNaN(when.getTime())) throw new BadRequestException('Parâmetro "at" inválido');
 
     switch (kind) {
       case 'blitz': {
+        if (!sdk.blitzOptions) throw new BadRequestException('Blitz options não suportado pelo SDK');
         const x = await sdk.blitzOptions();
-        return x.getActives().filter(a => a.canBeBoughtAt(now)).map(a => this.mapBlitz(a));
+        return x.getActives().filter(a => a.canBeBoughtAt(when)).map(a => this.mapBlitz(a));
       }
       case 'turbo': {
+        if (!sdk.turboOptions) throw new BadRequestException('Turbo options não suportado pelo SDK');
         const x = await sdk.turboOptions();
         return x.getActives().filter(a => !a.isSuspended).map(a => this.mapTurbo(a));
       }
       case 'binary': {
+        if (!sdk.binaryOptions) throw new BadRequestException('Binary options não suportado pelo SDK');
         const x = await sdk.binaryOptions();
         return x.getActives().filter(a => !a.isSuspended).map(a => this.mapBinary(a));
       }
       case 'digital': {
+        if (!sdk.digitalOptions) throw new BadRequestException('Digital options não suportado pelo SDK');
         const x = await sdk.digitalOptions();
-        return x.getUnderlyingsAvailableForTradingAt(now).map(u => this.mapDigital(u));
+        return x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapDigital(u));
       }
       case 'margin-forex': {
+        if (!sdk.marginForex) throw new BadRequestException('Margin Forex não suportado pelo SDK');
         const x = await sdk.marginForex();
-        return x.getUnderlyingsAvailableForTradingAt(now).map(u => this.mapMargin(u));
+        return x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapMargin(u));
       }
       case 'margin-cfd': {
+        if (!sdk.marginCfd) throw new BadRequestException('Margin CFD não suportado pelo SDK');
         const x = await sdk.marginCfd();
-        return x.getUnderlyingsAvailableForTradingAt(now).map(u => this.mapMargin(u));
+        return x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapMargin(u));
       }
       case 'margin-crypto': {
+        if (!sdk.marginCrypto) throw new BadRequestException('Margin Crypto não suportado pelo SDK');
         const x = await sdk.marginCrypto();
-        return x.getUnderlyingsAvailableForTradingAt(now).map(u => this.mapMargin(u));
+        return x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapMargin(u));
       }
       default:
         throw new BadRequestException('kind inválido');
@@ -116,19 +140,29 @@ export class MarketService {
 
   async getCandles(userId: string, q: GetCandlesQuery) {
     const sdk = await this.trade.getClientForUser(userId);
+    if (!sdk.candles) throw new BadRequestException('Candles API não suportada pelo SDK');
+
     const candles = await sdk.candles();
-    const opts: any = {
-      from: q.from,
-      to: q.to,
-      fromId: (q as any).fromId,
-      toId: (q as any).toId,
-      count: q.count ?? 200,
-      backoff: (q as any).backoff ?? 0,
-      onlyClosed: q.onlyClosed ?? true,
-      kind: q.kind,
-      splitNormalization: q.splitNormalization ?? false,
+    const from = toMs(q.from as any);
+    const to = toMs(q.to as any);
+    const size = toNum((q as any).size) ?? (q as any).size; // se o SDK aceita string/enum, mantenha
+    const count = toNum(q.count) ?? 200;
+    const backoff = toNum((q as any).backoff) ?? 0;
+    const onlyClosed = (q.onlyClosed ?? true) as boolean;
+    const splitNormalization = (q.splitNormalization ?? false) as boolean;
+
+    const opts: Record<string, any> = {
+      from: from !== undefined ? from : undefined,
+      to: to !== undefined ? to : undefined,
+      fromId: (q as any).fromId ?? undefined,
+      toId: (q as any).toId ?? undefined,
+      count,
+      backoff,
+      onlyClosed,
+      kind: (q as any).kind ?? undefined,
+      splitNormalization,
     };
-    Object.keys(opts).forEach(k => opts[k] === undefined && delete opts[k]);
-    return candles.getCandles(q.activeId, q.size, opts);
+
+    return candles.getCandles(q.activeId, size, opts);
   }
 }
