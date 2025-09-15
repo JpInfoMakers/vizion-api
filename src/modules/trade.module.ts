@@ -10,10 +10,12 @@ import { TurboOptionsService } from '../services/turbo-options.service';
 import { BinaryOptionsService } from '../services/binary-options.service';
 import { DigitalOptionsService } from '../services/digital-options.service';
 import { PositionsService } from '../services/positions.service';
+import { MarketService } from '../services/market.service';
 
 import { BalancesController } from '../controllers/balances.controller';
 import { QuotesController } from '../controllers/quotes.controller';
 import { PositionsController } from '../controllers/positions.controller';
+import { MarketController } from '../controllers/market.controller';
 
 @Module({
   imports: [
@@ -27,9 +29,9 @@ import { PositionsController } from '../controllers/positions.controller';
     TurboOptionsService,
     BinaryOptionsService,
     DigitalOptionsService,
-    PositionsService,
+    PositionsService, MarketService,
   ],
-  controllers: [BalancesController, QuotesController, PositionsController],
+  controllers: [BalancesController, QuotesController, PositionsController, MarketController],
   exports: [
     TradeService,
     BalancesService,
