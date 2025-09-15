@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import fastifyStatic from '@fastify/static';
+import fastifySSE from 'fastify-sse-v2';
 import 'dotenv/config';
 import path from 'path';
 
@@ -11,15 +12,12 @@ async function bootstrap() {
     new FastifyAdapter({ bodyLimit: 10 * 1024 * 1024 })
   );
 
+  await app.register(fastifySSE);
 
   app.enableCors({
-     origin: '*',
-    // origin: [
-    //   'http://localhost:9002',
-    //   'https://tradervizion.com',
-    // ],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true,
+    origin: ['http://localhost:9002', 'https://tradervizion.com'],
+    methods: ['GET','HEAD','PUT','PATCH','POST','DELETE','OPTIONS'],
+    credentials: false,
   });
 
   const uploadsRoot = path.resolve(process.cwd(), 'uploads');

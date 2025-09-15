@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { JwtService } from '@nestjs/jwt';
 import { UserEntity } from '../entity/user.entity';
-
 import { TradeService } from '../services/trade.service';
 import { BalancesService } from '../services/balances.service';
 import { QuotesService } from '../services/quotes.service';
@@ -11,17 +11,21 @@ import { BinaryOptionsService } from '../services/binary-options.service';
 import { DigitalOptionsService } from '../services/digital-options.service';
 import { PositionsService } from '../services/positions.service';
 import { MarketService } from '../services/market.service';
-
+import { StreamService } from '../services/stream.service';
 import { BalancesController } from '../controllers/balances.controller';
 import { QuotesController } from '../controllers/quotes.controller';
 import { PositionsController } from '../controllers/positions.controller';
 import { MarketController } from '../controllers/market.controller';
+import { StreamController } from '../controllers/stream.controller';
+import { SseJwtGuard } from '../guards/sse-jwt.guard';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([UserEntity]),
   ],
   providers: [
+    JwtService,
+    SseJwtGuard,
     TradeService,
     BalancesService,
     QuotesService,
@@ -29,9 +33,17 @@ import { MarketController } from '../controllers/market.controller';
     TurboOptionsService,
     BinaryOptionsService,
     DigitalOptionsService,
-    PositionsService, MarketService,
+    PositionsService,
+    MarketService,
+    StreamService,
   ],
-  controllers: [BalancesController, QuotesController, PositionsController, MarketController],
+  controllers: [
+    BalancesController,
+    QuotesController,
+    PositionsController,
+    MarketController,
+    StreamController,
+  ],
   exports: [
     TradeService,
     BalancesService,
@@ -41,6 +53,8 @@ import { MarketController } from '../controllers/market.controller';
     BinaryOptionsService,
     DigitalOptionsService,
     PositionsService,
+    MarketService,
+    StreamService,
   ],
 })
 export class TradeModule {}

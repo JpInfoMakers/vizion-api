@@ -34,7 +34,6 @@ export class StreamService {
         cq.subscribeOnUpdate(handler);
         unsub = () => cq.unsubscribeOnUpdate(handler);
 
-        // snapshot inicial
         handler(cq);
       })().catch((err) => subscriber.error(err));
 
