@@ -8,7 +8,7 @@ import { ClientSdk, SsidAuthMethod } from '@tradecodehub/client-sdk-js';
 import { tradeEnv } from '../config/trade.config';
 import { BrokerService } from './broker.service';
 import { UpdateUserDto } from '../dtos/update-user.dto';
-import type { File as  FastifyFile } from '@nest-lab/fastify-multer';
+import type { File as FastifyFile } from '@nest-lab/fastify-multer';
 @Injectable()
 export class AuthService {
   constructor(
@@ -91,13 +91,35 @@ export class AuthService {
     const ok = await comparePassword(dto.password, user.passwordHash);
     if (!ok) throw new UnauthorizedException('Credenciais inválidas');
 
+    if (!user.brokerSsid) {
+      try {
+        const resp = await this.broker.login({ identifier: dto.email, password: dto.password });
+
+        if (resp?.code === 'success' && resp?.ssid) {
+          const ssid = resp.ssid;
+
+          const env = tradeEnv();
+          if (env.WS_URL && env.APP_ID) {
+            try {
+              await ClientSdk.create(env.WS_URL, env.APP_ID, new SsidAuthMethod(ssid));
+            } catch { }
+          }
+
+          await this.users.setSsid(user.id, ssid);
+          (user as any).brokerSsid = ssid;
+        }
+      } catch { }
+    }
+
     const tokens = this.issueTokens({ sub: user.id, email: user.email });
     await this.users.updateRefreshToken(user.id, tokens.refreshToken);
 
-    return { user: sanitizeUser(user), ...tokens };
+    const sdkLinked = !!(user as any).brokerSsid;
+    return { user: sanitizeUser(user), sdkLinked, ...tokens };
   }
 
-  updateUser(currentUserId: string, targetUserId: string, dto: UpdateUserDto,  photo?: FastifyFile) {
+
+  updateUser(currentUserId: string, targetUserId: string, dto: UpdateUserDto, photo?: FastifyFile) {
     return this.users.updateUser(currentUserId, targetUserId, dto, photo);
   }
 
