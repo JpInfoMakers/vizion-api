@@ -34,6 +34,9 @@ export class UserEntity {
   @Column({ type: 'boolean', default: false })
   sdkLinked: boolean;
 
+  @Column({ nullable: true })
+  brokerSsid?: string;
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   ssid: string | null;
 

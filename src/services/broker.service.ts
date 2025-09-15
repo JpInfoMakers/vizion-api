@@ -2,12 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosError } from 'axios';
 
 export interface BrokerRegisterData {
-  identifier: string; 
+  identifier: string;
   password: string;
   accepted: string[];
   country_id: number;
   first_name: string;
-  timezone: string; 
+  timezone: string;
 }
 
 export interface BrokerLoginData {
@@ -22,14 +22,12 @@ export class BrokerService {
   private readonly RETRY_DELAY_MS = 2000;
 
   async register(data: BrokerRegisterData) {
-    const affiliateCode = "791568";
+    const affiliateCode = '791568';
     try {
       const res = await axios.post(process.env.BROKER_REGISTER_URL!, data, {
         headers: {
           'Content-Type': 'application/json',
-          ...(affiliateCode
-            ? { Cookie: `aff=${affiliateCode}; aff_model=revenue; afftrack=` }
-            : {}),
+          ...(affiliateCode ? { Cookie: `aff=${affiliateCode}; aff_model=revenue; afftrack=` } : {}),
         },
         timeout: 10000,
       });
