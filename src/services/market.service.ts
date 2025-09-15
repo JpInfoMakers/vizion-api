@@ -19,14 +19,8 @@ export class MarketService {
 
   private wsNow(sdk: ClientSdk) { return sdk.currentTime(); }
 
-  /**
-   * Aceita arrays com { from, to } (Blitz/Turbo/Binary)
-   * ou { open, close } (Digital/Margin) e normaliza para { from, to } em ISO.
-   */
   private mapSchedule(
-    ranges?:
-      | { from: Date; to: Date }[]
-      | { open: Date; close: Date }[]
+    ranges?: { from: Date; to: Date }[] | { open: Date; close: Date }[]
   ) {
     return ranges?.map((r: any) => {
       const start: Date = r.from ?? r.open;
@@ -45,7 +39,6 @@ export class MarketService {
       schedule: this.mapSchedule(a.schedule),
     };
   }
-
   private mapTurbo(a: TurboOptionsActive): ActiveSummaryDto {
     return {
       id: a.id,
@@ -56,7 +49,6 @@ export class MarketService {
       schedule: this.mapSchedule(a.schedule),
     };
   }
-
   private mapBinary(a: BinaryOptionsActive): ActiveSummaryDto {
     return {
       id: a.id,
@@ -67,7 +59,6 @@ export class MarketService {
       schedule: this.mapSchedule(a.schedule),
     };
   }
-
   private mapDigital(u: DigitalOptionsUnderlying): ActiveSummaryDto {
     return {
       id: u.activeId,
@@ -76,7 +67,6 @@ export class MarketService {
       schedule: this.mapSchedule(u.schedule),
     };
   }
-
   private mapMargin(u: MarginUnderlying): ActiveSummaryDto {
     return {
       id: u.activeId,
@@ -86,7 +76,6 @@ export class MarketService {
     };
   }
 
-  /** Lista ativos/underlyings disponíveis agora */
   async listActives(userId: string, kind: ActiveKind, at?: string): Promise<ActiveSummaryDto[]> {
     const sdk = await this.trade.getClientForUser(userId);
     const now = at ? new Date(at) : this.wsNow(sdk);
@@ -125,14 +114,13 @@ export class MarketService {
     }
   }
 
-  /** Candles para um ativo */
   async getCandles(userId: string, q: GetCandlesQuery) {
     const sdk = await this.trade.getClientForUser(userId);
     const candles = await sdk.candles();
     const opts: any = {
       from: q.from,
       to: q.to,
-      fromId: (q as any).fromId, // caso você tenha incluído no DTO
+      fromId: (q as any).fromId,
       toId: (q as any).toId,
       count: q.count ?? 200,
       backoff: (q as any).backoff ?? 0,
