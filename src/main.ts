@@ -1,11 +1,11 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import fastifyStatic from '@fastify/static';
 import fastifySSE from 'fastify-sse-v2';
 import 'dotenv/config';
 import path from 'path';
 import { AccessTokenQueryGuard } from './guards/access-token-query.guard';
+import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(

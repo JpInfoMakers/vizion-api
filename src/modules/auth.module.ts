@@ -8,6 +8,7 @@ import { BrokerService } from '../services/broker.service';
 import { UserModule } from './user.module';
 import { JwtStrategy } from '../strategies/jwt.strategy';
 import { UserEntity } from '../entity/user.entity';
+import { AccessTokenQueryGuard } from '../guards/access-token-query.guard';
 
 @Module({
   imports: [
@@ -20,7 +21,7 @@ import { UserEntity } from '../entity/user.entity';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, BrokerService, JwtStrategy],
-  exports: [PassportModule, JwtModule],
+  providers: [AuthService, BrokerService, JwtStrategy, AccessTokenQueryGuard],
+  exports: [PassportModule, JwtModule, AccessTokenQueryGuard],
 })
 export class AuthModule {}
