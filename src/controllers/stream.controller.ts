@@ -1,10 +1,11 @@
 import { Controller, Sse, MessageEvent, Query, UseGuards } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { CurrentUser } from '../decorators/current-user.decorator';
-import { SseJwtGuard } from '../guards/sse-jwt.guard';
+import { AccessTokenQueryGuard } from '../guards/access-token-query.guard';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { StreamService } from '../services/stream.service';
 
-@UseGuards(SseJwtGuard)
+@UseGuards(AccessTokenQueryGuard, JwtAuthGuard)
 @Controller('v1/trade/stream')
 export class StreamController {
   constructor(private readonly svc: StreamService) {}
@@ -22,5 +23,4 @@ export class StreamController {
   ): Observable<MessageEvent> {
     return this.svc.streamRollingCandle(userId, Number(activeId), Number(size || 60));
   }
-  
 }

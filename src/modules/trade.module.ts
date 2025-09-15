@@ -20,8 +20,7 @@ import { QuotesController } from '../controllers/quotes.controller';
 import { PositionsController } from '../controllers/positions.controller';
 import { MarketController } from '../controllers/market.controller';
 import { StreamController } from '../controllers/stream.controller';
-
-import { SseJwtGuard } from '../guards/sse-jwt.guard';
+import { AccessTokenQueryGuard } from 'src/guards/access-token-query.guard';
 
 @Module({
   imports: [
@@ -29,7 +28,7 @@ import { SseJwtGuard } from '../guards/sse-jwt.guard';
     AuthModule,
   ],
   providers: [
-    SseJwtGuard,
+    AccessTokenQueryGuard,
     TradeService,
     BalancesService,
     QuotesService,
@@ -47,18 +46,6 @@ import { SseJwtGuard } from '../guards/sse-jwt.guard';
     PositionsController,
     MarketController,
     StreamController,
-  ],
-  exports: [
-    TradeService,
-    BalancesService,
-    QuotesService,
-    BlitzOptionsService,
-    TurboOptionsService,
-    BinaryOptionsService,
-    DigitalOptionsService,
-    PositionsService,
-    MarketService,
-    StreamService,
   ],
 })
 export class TradeModule {}
