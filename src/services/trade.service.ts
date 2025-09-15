@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserEntity } from '../entity/user.entity';
 import { ClientSdk, SsidAuthMethod } from '@tradecodehub/client-sdk-js';
+import { tradeEnv } from '../config/trade.config';
 
 type CacheItem = { sdk: ClientSdk; ssid: string };
 
@@ -13,18 +14,19 @@ export class TradeService {
   private cache = new Map<string, CacheItem>();
 
   private async createSdkWithSsid(ssid: string): Promise<ClientSdk> {
-    const wsUrl = process.env.BROKER_WS_API_URL;
-    const platformId = Number(process.env.BROKER_PLATFORM_ID ?? 1);
+    const env = tradeEnv();
+    const wsUrl = env.WS_URL;
+    const appId = env.APP_ID;
 
-    console.log('[TradeService] criando SDK', { wsUrl, platformId, ssid: ssid?.slice(0, 6) });
+    console.log('[TradeService] creating SDK', { wsUrl, appId, ssid: ssid?.slice(0, 6) });
 
-    if (!wsUrl) throw new UnauthorizedException('WS do broker não configurado');
-
-    return ClientSdk.create(wsUrl, platformId, new SsidAuthMethod(ssid));
+    if (!wsUrl || !appId) {
+      throw new UnauthorizedException('WS do broker não configurado (TRADE_WS_URL/TRADE_APP_ID ausentes)');
+    }
+    return ClientSdk.create(wsUrl, appId, new SsidAuthMethod(ssid));
   }
 
   private async loginWithSsid(userId: string, ssid: string): Promise<ClientSdk> {
-    console.log('[TradeService] loginWithSsid', { userId, ssid: ssid?.slice(0, 6) });
     const sdk = await this.createSdkWithSsid(ssid);
     this.cache.set(userId, { sdk, ssid });
     return sdk;
@@ -34,11 +36,11 @@ export class TradeService {
     console.log('[TradeService] getClientForUser IN', { userId });
 
     const user = await this.users.findOne({ where: { id: userId } });
-    console.log('[TradeService] user loaded', { exists: !!user, brokerSsid: user?.brokerSsid, legacySsid: (user as any)?.ssid });
+    console.log('[TradeService] user loaded', { exists: !!user, brokerSsid: user?.brokerSsid });
 
     if (!user) throw new UnauthorizedException('Usuário inválido');
 
-    const effectiveSsid = user.brokerSsid ?? (user as any).ssid ?? null;
+    const effectiveSsid = user.brokerSsid ?? (user as any).ssid ?? null; // fallback se ainda existir coluna antiga
     if (!effectiveSsid) {
       console.error('[TradeService] sem SSID -> 401');
       throw new UnauthorizedException('Conecte sua conta ao broker');
@@ -47,10 +49,7 @@ export class TradeService {
     const cached = this.cache.get(userId);
     console.log('[TradeService] cache check', { hasCache: !!cached, cachedSsid: cached?.ssid });
 
-    if (cached && cached.ssid === effectiveSsid) {
-      console.log('[TradeService] usando cache');
-      return cached.sdk;
-    }
+    if (cached && cached.ssid === effectiveSsid) return cached.sdk;
 
     try {
       console.log('[TradeService] criando nova sessão SDK');
@@ -64,9 +63,6 @@ export class TradeService {
 
   async invalidate(userId: string) {
     const c = this.cache.get(userId);
-    if (c) {
-      try { await c.sdk.shutdown(); } catch {}
-      this.cache.delete(userId);
-    }
+    if (c) { try { await c.sdk.shutdown(); } catch {} this.cache.delete(userId); }
   }
 }
