@@ -29,7 +29,7 @@ function toNum(v: any) {
 export class MarketService {
   private readonly logger = new Logger(MarketService.name);
 
-  constructor(private readonly trade: TradeService) {}
+  constructor(private readonly trade: TradeService) { }
 
   private async wsNow(sdk: ClientSdk) {
     const maybe = await sdk.currentTime();
@@ -206,11 +206,14 @@ export class MarketService {
         splitNormalization,
       };
 
-      const out = await candles.getCandles(q.activeId, size, opts);
+      const out: any = await candles.getCandles(q.activeId, size, opts);
 
       const dt = Date.now() - t0;
-      const len = Array.isArray(out) ? out.length : (out?.candles?.length ?? '??');
+      const len = Array.isArray(out) ? out.length : (out && typeof out === 'object' && 'candles' in out && Array.isArray((out as any).candles))
+        ? (out as any).candles.length
+        : '??';
       this.logger.log(`[getCandles] OK activeId=${q.activeId} size=${size} count=${len} took=${dt}ms`);
+
       return out;
     } catch (err: any) {
       const dt = Date.now() - t0;
