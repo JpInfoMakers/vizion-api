@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { MarketService } from '../services/market.service';
@@ -11,11 +11,13 @@ export class MarketController {
   constructor(private readonly svc: MarketService) {}
 
   @Get('actives')
-  listActives(
-    @CurrentUser('id') userId: string,
-    @Query() q: ListActivesQuery
-  ) {
+  listActivesLegacy(@CurrentUser('id') userId: string, @Query() q: ListActivesQuery) {
     return this.svc.listActives(userId, q.kind as any, q.at);
+  }
+
+  @Get('actives/:kind')
+  listActivesByParam(@CurrentUser('id') userId: string, @Param('kind') kind: string, @Query('at') at?: string) {
+    return this.svc.listActives(userId, kind as any, at);
   }
 
   @Get('actives/all')
@@ -45,10 +47,8 @@ export class MarketController {
   }
 
   @Get('candles')
-  getCandles(
-    @CurrentUser('id') userId: string,
-    @Query() q: GetCandlesQuery
-  ) {
+  getCandles(@CurrentUser('id') userId: string, @Query() q: GetCandlesQuery) {
     return this.svc.getCandles(userId, q);
   }
+  
 }
