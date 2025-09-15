@@ -10,10 +10,7 @@ export class StreamController {
   constructor(private readonly svc: StreamService) {}
 
   @Sse('quotes')
-  quotes(
-    @CurrentUser('id') userId: string,
-    @Query('activeId') activeId: string,
-  ): Observable<MessageEvent> {
+  quotes(@CurrentUser('id') userId: string, @Query('activeId') activeId: string): Observable<MessageEvent> {
     return this.svc.streamQuote(userId, Number(activeId));
   }
 
@@ -25,4 +22,5 @@ export class StreamController {
   ): Observable<MessageEvent> {
     return this.svc.streamRollingCandle(userId, Number(activeId), Number(size || 60));
   }
+  
 }

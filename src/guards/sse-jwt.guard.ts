@@ -5,12 +5,10 @@ import { JwtService } from '@nestjs/jwt';
 export class SseJwtGuard implements CanActivate {
   constructor(private readonly jwt: JwtService) {}
 
-  canActivate(context: ExecutionContext): boolean {
-    const req = context.switchToHttp().getRequest();
-
+  canActivate(ctx: ExecutionContext): boolean {
+    const req = ctx.switchToHttp().getRequest();
     const auth = req.headers?.authorization as string | undefined;
-    let token = auth?.startsWith('Bearer ') ? auth.slice('Bearer '.length) : undefined;
-
+    let token = auth?.startsWith('Bearer ') ? auth.slice(7) : undefined;
     if (!token) token = req.query?.access_token as string | undefined;
     if (!token) throw new UnauthorizedException('missing token');
 
