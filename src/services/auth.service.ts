@@ -1,3 +1,4 @@
+// src/modules/auth/services/auth.service.ts
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { RegisterDto } from '../dtos/register.dto';
@@ -9,13 +10,14 @@ import { tradeEnv } from '../config/trade.config';
 import { BrokerService } from './broker.service';
 import { UpdateUserDto } from '../dtos/update-user.dto';
 import type { File as FastifyFile } from '@nest-lab/fastify-multer';
+
 @Injectable()
 export class AuthService {
   constructor(
     private readonly users: UserService,
     private readonly jwt: JwtService,
     private readonly broker: BrokerService
-  ) { }
+  ) {}
 
   private issueTokens(payload: { sub: string; email: string }) {
     const accessToken = this.jwt.sign(payload, {
@@ -31,7 +33,6 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const { email, first_name, last_name, phone, password } = dto;
-
     const exists = await this.users.findByEmail(email);
     if (exists) throw new BadRequestException('E-mail já cadastrado');
 
@@ -53,7 +54,7 @@ export class AuthService {
     }
 
     const login_response = await this.broker.login({ identifier: email, password });
-    const { code, ssid, user_id } = login_response || {};
+    const { code, ssid } = login_response || {};
     if (code !== 'success' || !ssid) {
       throw new BadRequestException({
         message: 'Registro realizado, mas login externo falhou',
@@ -94,21 +95,18 @@ export class AuthService {
     if (!user.brokerSsid) {
       try {
         const resp = await this.broker.login({ identifier: dto.email, password: dto.password });
-
         if (resp?.code === 'success' && resp?.ssid) {
           const ssid = resp.ssid;
-
           const env = tradeEnv();
           if (env.WS_URL && env.APP_ID) {
             try {
               await ClientSdk.create(env.WS_URL, env.APP_ID, new SsidAuthMethod(ssid));
-            } catch { }
+            } catch {}
           }
-
           await this.users.setSsid(user.id, ssid);
           (user as any).brokerSsid = ssid;
         }
-      } catch { }
+      } catch {}
     }
 
     const tokens = this.issueTokens({ sub: user.id, email: user.email });
@@ -117,7 +115,6 @@ export class AuthService {
     const sdkLinked = !!(user as any).brokerSsid;
     return { user: sanitizeUser(user), sdkLinked, ...tokens };
   }
-
 
   updateUser(currentUserId: string, targetUserId: string, dto: UpdateUserDto, photo?: FastifyFile) {
     return this.users.updateUser(currentUserId, targetUserId, dto, photo);
@@ -142,7 +139,6 @@ export class AuthService {
 
   async loginBroker(dto: LoginDto) {
     const resp = await this.broker.login({ identifier: dto.email, password: dto.password });
-
     if (resp.code === 'requests_limit_exceeded') {
       throw new BadRequestException('Login externo temporariamente indisponível');
     }
@@ -193,7 +189,7 @@ export class AuthService {
 
   async me(userId: string) {
     const user = await this.users.findById(userId);
-    return user ? sanitizeUser(user) : null;
+    if (!user) return null;
+    return { ...sanitizeUser(user), sdkLinked: !!user.brokerSsid };
   }
-
 }

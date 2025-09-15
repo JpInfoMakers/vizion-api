@@ -15,7 +15,7 @@ export class UserService {
     @InjectRepository(UserEntity)
     private readonly repo: Repository<UserEntity>,
     private readonly imageService: ImageService
-  ) { }
+  ) {}
 
   async create(data: {
     email: string;
@@ -32,7 +32,10 @@ export class UserService {
       passwordHash: data.passwordHash,
       refreshTokenHash: null,
       sdkLinked: false,
-      ssid: null,
+      brokerSsid: null,
+      photoURL: null,
+      language: null,
+      baseCurrency: null,
     });
     return this.repo.save(user);
   }
@@ -64,7 +67,6 @@ export class UserService {
     return user;
   }
 
-
   findByEmail(email: string) {
     return this.repo.findOne({ where: { email } });
   }
@@ -73,12 +75,12 @@ export class UserService {
     return this.repo.findOne({ where: { id } });
   }
 
-  findBySsid(ssid: string) {
-    return this.repo.findOne({ where: { ssid } });
+  findByBrokerSsid(ssid: string) {
+    return this.repo.findOne({ where: { brokerSsid: ssid } });
   }
 
   async setSsid(userId: string, ssid: string | null) {
-    await this.repo.update({ id: userId }, { ssid, sdkLinked: !!ssid });
+    await this.repo.update({ id: userId }, { brokerSsid: ssid, sdkLinked: !!ssid });
   }
 
   async updateRefreshToken(userId: string, refreshToken: string) {
@@ -115,17 +117,26 @@ export class UserService {
   }
 
   async findOrCreateBySsid(ssid: string) {
-    let user = await this.findBySsid(ssid);
+    let user = await this.findByBrokerSsid(ssid);
     if (user) return user;
+
+    const email = `ssid_${ssid}@local`;
+    const passwordHash = await bcrypt.hash(crypto.randomUUID(), 10);
+
     user = this.repo.create({
-      email: `ssid_${ssid}@local`,
+      email,
       firstName: 'SDK',
       lastName: 'User',
       phone: null,
-      passwordHash: await bcrypt.hash(crypto.randomUUID(), 10),
-      ssid,
+      passwordHash,
+      brokerSsid: ssid,
       sdkLinked: true,
+      refreshTokenHash: null,
+      photoURL: null,
+      language: null,
+      baseCurrency: null,
     });
+
     return this.repo.save(user);
   }
 }

@@ -34,11 +34,8 @@ export class UserEntity {
   @Column({ type: 'boolean', default: false })
   sdkLinked: boolean;
 
-  @Column({ nullable: true })
-  brokerSsid?: string;
-
   @Column({ type: 'varchar', length: 255, nullable: true })
-  ssid: string | null;
+  brokerSsid: string | null;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
   photoURL: string | null;
@@ -54,5 +51,4 @@ export class UserEntity {
 
   @UpdateDateColumn()
   updatedAt: Date;
-  
 }
