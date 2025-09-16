@@ -18,18 +18,22 @@ function toMs(v?: string | number | null) {
   const n = Number(v);
   if (Number.isFinite(n)) return n;
   const p = Date.parse(String(v));
-  return Number.isFinite(p) ? p : undefined;
+  return Number.isFinite(p) ? Math.floor(p) : undefined;
 }
 function toNum(v: any) {
   const n = typeof v === 'string' ? Number(v) : v;
   return Number.isFinite(n) ? Number(n) : undefined;
+}
+function isWs4000(e: any) {
+  const msg = String(e?.message ?? e ?? '');
+  return msg.includes('status 4000');
 }
 
 @Injectable()
 export class MarketService {
   private readonly logger = new Logger(MarketService.name);
 
-  constructor(private readonly trade: TradeService) { }
+  constructor(private readonly trade: TradeService) {}
 
   private async wsNow(sdk: ClientSdk) {
     const maybe = await sdk.currentTime();
@@ -94,76 +98,49 @@ export class MarketService {
   }
 
   async listActives(userId: string, kind: ActiveKind, at?: string): Promise<ActiveSummaryDto[]> {
-    const t0 = Date.now();
-    this.logger.log(`[listActives] IN userId=${userId} kind=${kind} at=${at ?? '<now>'}`);
-
     const sdk = await this.trade.getClientForUser(userId);
     const baseNow = await this.wsNow(sdk);
     const when = at ? new Date(at) : baseNow;
-    if (Number.isNaN(when.getTime())) {
-      this.logger.warn(`[listActives] invalid "at" received: ${at}`);
-      throw new BadRequestException('Parâmetro "at" inválido');
-    }
+    if (Number.isNaN(when.getTime())) throw new BadRequestException('Parâmetro "at" inválido');
 
-    try {
-      let out: ActiveSummaryDto[] = [];
-      switch (kind) {
-        case 'blitz': {
-          if (!sdk.blitzOptions) throw new BadRequestException('Blitz options não suportado pelo SDK');
-          const x = await sdk.blitzOptions();
-          out = x.getActives().filter(a => a.canBeBoughtAt(when)).map(a => this.mapBlitz(a));
-          break;
-        }
-        case 'turbo': {
-          if (!sdk.turboOptions) throw new BadRequestException('Turbo options não suportado pelo SDK');
-          const x = await sdk.turboOptions();
-          out = x.getActives().filter(a => !a.isSuspended).map(a => this.mapTurbo(a));
-          break;
-        }
-        case 'binary': {
-          if (!sdk.binaryOptions) throw new BadRequestException('Binary options não suportado pelo SDK');
-          const x = await sdk.binaryOptions();
-          out = x.getActives().filter(a => !a.isSuspended).map(a => this.mapBinary(a));
-          break;
-        }
-        case 'digital': {
-          if (!sdk.digitalOptions) throw new BadRequestException('Digital options não suportado pelo SDK');
-          const x = await sdk.digitalOptions();
-          out = x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapDigital(u));
-          break;
-        }
-        case 'margin-forex': {
-          if (!sdk.marginForex) throw new BadRequestException('Margin Forex não suportado pelo SDK');
-          const x = await sdk.marginForex();
-          out = x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapMargin(u));
-          break;
-        }
-        case 'margin-cfd': {
-          if (!sdk.marginCfd) throw new BadRequestException('Margin CFD não suportado pelo SDK');
-          const x = await sdk.marginCfd();
-          out = x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapMargin(u));
-          break;
-        }
-        case 'margin-crypto': {
-          if (!sdk.marginCrypto) throw new BadRequestException('Margin Crypto não suportado pelo SDK');
-          const x = await sdk.marginCrypto();
-          out = x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapMargin(u));
-          break;
-        }
-        default:
-          throw new BadRequestException('kind inválido');
+    switch (kind) {
+      case 'blitz': {
+        if (!sdk.blitzOptions) throw new BadRequestException('Blitz options não suportado pelo SDK');
+        const x = await sdk.blitzOptions();
+        return x.getActives().filter(a => a.canBeBoughtAt(when)).map(a => this.mapBlitz(a));
       }
-
-      const dt = Date.now() - t0;
-      this.logger.log(`[listActives] OK kind=${kind} count=${out.length} took=${dt}ms`);
-      return out;
-    } catch (err: any) {
-      const dt = Date.now() - t0;
-      this.logger.error(
-        `[listActives] ERROR kind=${kind} took=${dt}ms -> ${err?.message}`,
-        err?.stack,
-      );
-      throw err;
+      case 'turbo': {
+        if (!sdk.turboOptions) throw new BadRequestException('Turbo options não suportado pelo SDK');
+        const x = await sdk.turboOptions();
+        return x.getActives().filter(a => !a.isSuspended).map(a => this.mapTurbo(a));
+      }
+      case 'binary': {
+        if (!sdk.binaryOptions) throw new BadRequestException('Binary options não suportado pelo SDK');
+        const x = await sdk.binaryOptions();
+        return x.getActives().filter(a => !a.isSuspended).map(a => this.mapBinary(a));
+      }
+      case 'digital': {
+        if (!sdk.digitalOptions) throw new BadRequestException('Digital options não suportado pelo SDK');
+        const x = await sdk.digitalOptions();
+        return x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapDigital(u));
+      }
+      case 'margin-forex': {
+        if (!sdk.marginForex) throw new BadRequestException('Margin Forex não suportado pelo SDK');
+        const x = await sdk.marginForex();
+        return x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapMargin(u));
+      }
+      case 'margin-cfd': {
+        if (!sdk.marginCfd) throw new BadRequestException('Margin CFD não suportado pelo SDK');
+        const x = await sdk.marginCfd();
+        return x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapMargin(u));
+      }
+      case 'margin-crypto': {
+        if (!sdk.marginCrypto) throw new BadRequestException('Margin Crypto não suportado pelo SDK');
+        const x = await sdk.marginCrypto();
+        return x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapMargin(u));
+      }
+      default:
+        throw new BadRequestException('kind inválido');
     }
   }
 
@@ -171,57 +148,82 @@ export class MarketService {
     const t0 = Date.now();
     this.logger.log(`[getCandles] IN userId=${userId} q=${JSON.stringify(q)}`);
 
-    const sdk = await this.trade.getClientForUser(userId);
-    if (!sdk.candles) {
-      this.logger.warn('[getCandles] Candles API não suportada pelo SDK');
-      throw new BadRequestException('Candles API não suportada pelo SDK');
+    const activeId = toNum((q as any).activeId);
+    const size = toNum((q as any).size);
+    if (!Number.isFinite(activeId as number) || !Number.isFinite(size as number)) {
+      throw new BadRequestException('Parâmetros "activeId" e "size" devem ser numéricos');
     }
 
-    try {
-      const candles = await sdk.candles();
+    const from = toMs((q as any).from);
+    const to = toMs((q as any).to);
+    const count = toNum(q.count) ?? 200;
+    const backoff = toNum((q as any).backoff) ?? 0;
 
-      const from = toMs(q.from as any);
-      const to = toMs(q.to as any);
-      const size = toNum((q as any).size) ?? (q as any).size; // mantém se SDK aceitar string/enum
-      const count = toNum(q.count) ?? 200;
-      const backoff = toNum((q as any).backoff) ?? 0;
-      const onlyClosed = (q.onlyClosed ?? true) as boolean;
-      const splitNormalization = (q.splitNormalization ?? false) as boolean;
+    const onlyClosed = typeof q.onlyClosed === 'boolean' ? q.onlyClosed : undefined;
+    const splitNormalization = typeof (q as any).splitNormalization === 'boolean' ? (q as any).splitNormalization : undefined;
 
-      // log de parâmetros efetivos
-      this.logger.log(
-        `[getCandles] params activeId=${q.activeId} size=${size} from=${from ?? '-'} to=${to ?? '-'} ` +
-        `count=${count} backoff=${backoff} onlyClosed=${onlyClosed} splitNorm=${splitNormalization}`
-      );
+    const fullOpts: Record<string, any> = {};
+    if (from !== undefined) fullOpts.from = from;
+    if (to !== undefined) fullOpts.to = to;
+    if ((q as any).fromId !== undefined) fullOpts.fromId = (q as any).fromId;
+    if ((q as any).toId !== undefined) fullOpts.toId = (q as any).toId;
+    if (count !== undefined) fullOpts.count = count;
+    if (backoff !== undefined) fullOpts.backoff = backoff;
+    if (onlyClosed !== undefined) fullOpts.onlyClosed = onlyClosed;
+    if ((q as any).kind !== undefined) fullOpts.kind = (q as any).kind;
+    if (splitNormalization !== undefined) fullOpts.splitNormalization = splitNormalization;
 
-      const opts: Record<string, any> = {
-        from: from !== undefined ? from : undefined,
-        to: to !== undefined ? to : undefined,
-        fromId: (q as any).fromId ?? undefined,
-        toId: (q as any).toId ?? undefined,
-        count,
-        backoff,
-        onlyClosed,
-        kind: (q as any).kind ?? undefined,
-        splitNormalization,
-      };
+    const minimalOpts: Record<string, any> = {};
+    if (from !== undefined) minimalOpts.from = from;
+    if (to !== undefined) minimalOpts.to = to;
+    if (count !== undefined) minimalOpts.count = count;
 
-      const out: any = await candles.getCandles(q.activeId, size, opts);
+    let attempt = 0;
+    let lastErr: any = null;
 
-      const dt = Date.now() - t0;
-      const len = Array.isArray(out) ? out.length : (out && typeof out === 'object' && 'candles' in out && Array.isArray((out as any).candles))
-        ? (out as any).candles.length
-        : '??';
-      this.logger.log(`[getCandles] OK activeId=${q.activeId} size=${size} count=${len} took=${dt}ms`);
+    const plans = [
+      { name: 'full', opts: fullOpts, refresh: false },
+      { name: 'minimal', opts: minimalOpts, refresh: false },
+      { name: 'invalidate+minimal', opts: minimalOpts, refresh: true },
+    ];
 
-      return out;
-    } catch (err: any) {
-      const dt = Date.now() - t0;
-      this.logger.error(
-        `[getCandles] ERROR userId=${userId} q=${JSON.stringify(q)} took=${dt}ms -> ${err?.message}`,
-        err?.stack,
-      );
-      throw err;
+    for (const plan of plans) {
+      attempt++;
+      try {
+        if (plan.refresh) {
+          this.logger.warn(`[getCandles] attempt#${attempt} -> invalidating session and recreating…`);
+          await this.trade.invalidate(userId);
+        }
+
+        const sdk = await this.trade.getClientForUser(userId);
+        if (!sdk.candles) throw new BadRequestException('Candles API não suportada pelo SDK');
+
+        const candles = await sdk.candles();
+
+        this.logger.log(
+          `[getCandles] attempt#${attempt} plan=${plan.name} params activeId=${activeId} size=${size}` +
+          ` from=${from ?? '-'} to=${to ?? '-'} count=${count ?? '-'}`
+        );
+
+        const out = await candles.getCandles(activeId as number, size as number, plan.opts);
+        const len = Array.isArray(out) ? out.length : (out as any)?.candles?.length ?? '??';
+
+        this.logger.log(
+          `[getCandles] OK attempt#${attempt} plan=${plan.name} -> len=${len} took=${Date.now() - t0}ms`
+        );
+        return out;
+      } catch (e: any) {
+        lastErr = e;
+        const took = Date.now() - t0;
+        this.logger.error(
+          `[getCandles] ERROR attempt#${attempt} plan=${plan.name} took=${took}ms -> ${e?.message || e}`
+        );
+        if (!isWs4000(e)) {
+          break;
+        }
+      }
     }
+
+    throw lastErr || new BadRequestException('Falha ao obter candles');
   }
 }
