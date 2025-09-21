@@ -11,7 +11,7 @@ export type ResponseData = {
 
 @Injectable()
 export class OpenIAService {
-  private readonly apiKey = process.env.OPENAI_TOKEN || '';
+  private readonly apiKey = process.env.OPENAI || '';
   private readonly baseURL = (process.env.OPENAI_BASE_URL || '').replace(/\/+$/, '/') ;
   protected readonly logger = new Logger(OpenIAService.name);
 
