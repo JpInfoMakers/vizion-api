@@ -57,6 +57,5 @@ jobs:
             . "$ENV_FILE"
             set +a
 
-            # Sobe/atualiza somente o app "vizion" do ecosystem
             pm2 start ecosystem.config.js --only vizion --update-env
             pm2 save
