@@ -1,0 +1,62 @@
+name: "Deploy Vizion API (Hostinger)"
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Add Hostinger to known_hosts (SSH)"
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.HOSTINGER_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: "Deploy via SSH"
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_HOST }}
+          username: ${{ secrets.HOSTINGER_USER }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            # >>> AJUSTE O CAMINHO DO PROJETO NA VPS AQUI <<<
+            APP_DIR="/home/${USER}/apps/vizion-api"
+            SECRETS_DIR="/home/${USER}/secrets"
+            ENV_FILE="${SECRETS_DIR}/vizion.env"
+
+            echo "[1/4] Preparando pastas"
+            mkdir -p "$SECRETS_DIR" "$APP_DIR"
+            chmod 700 "$SECRETS_DIR"
+
+            echo "[2/4] Gravando env de runtime (dos GitHub Secrets)"
+            # Adicione aqui quaisquer outras variáveis que forem necessárias
+            cat > "$ENV_FILE" << 'EOF'
+            OPENAI_TOKEN=${{ secrets.OPENAI_TOKEN }}
+            OPENAI_BASE_URL=${{ secrets.OPENAI_BASE_URL }}
+            EOF
+            chmod 600 "$ENV_FILE"
+
+            echo "[3/4] Atualizando código e build"
+            cd "$APP_DIR"
+
+            git fetch --all
+            git reset --hard origin/main
+            npm ci
+            npm run build
+
+            echo "[4/4] Iniciando PM2 com env atualizado (service: vizion)"
+            set -a
+            . "$ENV_FILE"
+            set +a
+
+            # Sobe/atualiza somente o app "vizion" do ecosystem
+            pm2 start ecosystem.config.js --only vizion --update-env
+            pm2 save
