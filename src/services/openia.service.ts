@@ -11,7 +11,7 @@ export type ResponseData = {
 
 @Injectable()
 export class OpenIAService {
-  private readonly apiKey = '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';
+  private readonly apiKey = 'GvTBS10LEP81ykN-AQeeEOKWjY5faNuegEes1MoicHtav6lZe7ULkcVVd34KNn1nJVEIlGuw8gT3BlbkFJImWxw5QO7m-D7jf6GszTv1rX-xa6mZuus1xUXFRV8bEcOmIbVcxXXC74L_61xv2iLQVpv5NpMA';
   private readonly baseURL = 'https://api.openai.com/v1/' ;
   protected readonly logger = new Logger(OpenIAService.name);
 
