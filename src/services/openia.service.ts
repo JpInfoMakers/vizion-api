@@ -11,8 +11,8 @@ export type ResponseData = {
 
 @Injectable()
 export class OpenIAService {
-  private readonly apiKey = 'GvTBS10LEP81ykN-AQeeEOKWjY5faNuegEes1MoicHtav6lZe7ULkcVVd34KNn1nJVEIlGuw8gT3BlbkFJImWxw5QO7m-D7jf6GszTv1rX-xa6mZuus1xUXFRV8bEcOmIbVcxXXC74L_61xv2iLQVpv5NpMA';
-  private readonly baseURL = 'https://api.openai.com/v1/' ;
+  private readonly apiKey = process.env.OPENAI_TOKEN || '';
+  private readonly baseURL = (process.env.OPENAI_BASE_URL || '').replace(/\/+$/, '/') ;
   protected readonly logger = new Logger(OpenIAService.name);
 
   async find(img: string): Promise<ResponseData> {
