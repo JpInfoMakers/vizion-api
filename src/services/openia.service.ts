@@ -11,12 +11,11 @@ export type ResponseData = {
 
 @Injectable()
 export class OpenIAService {
-  private readonly logger = new Logger(OpenIAService.name);
+  protected readonly logger = new Logger(OpenIAService.name);
   private readonly apiKey = (process.env.OPENAI_TOKEN || '').trim();
   private readonly baseURL = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
   private readonly http: AxiosInstance;
 
-  // ---------- Limitação de taxa (in-process) ----------
   private static readonly MAX_CONCURRENCY = 1;      // serializa chamadas
   private static readonly MIN_GAP_MS = 350;         // espaçamento mínimo entre chamadas
   private static running = 0;

@@ -5,7 +5,7 @@ import { BalanceType } from '@tradecodehub/client-sdk-js';
 
 @Injectable()
 export class AutomatorService extends OpenIAService {
-  private readonly logger = new Logger(AutomatorService.name);
+  private readonly automatorLogger = new Logger(AutomatorService.name);
 
   constructor(private buyService: BuyService) {
     super();
@@ -23,14 +23,14 @@ export class AutomatorService extends OpenIAService {
     let attempts = 0;
     const maxAttempts = 5;
 
-    this.logger.debug(`Iniciando automação para user=${userId}, tentativas=${maxAttempts}`);
+    this.automatorLogger.debug(`Iniciando automação para user=${userId}, tentativas=${maxAttempts}`);
 
     while (attempts++ < maxAttempts) {
       try {
-        this.logger.debug(`Tentativa ${attempts}/${maxAttempts}`);
+        this.automatorLogger.debug(`Tentativa ${attempts}/${maxAttempts}`);
 
         const analyser: ResponseData = await this.find(img);
-        this.logger.debug(`Resposta do analyser: ${JSON.stringify(analyser)}`);
+        this.automatorLogger.debug(`Resposta do analyser: ${JSON.stringify(analyser)}`);
 
         const rec = analyser.recomendacao.toLowerCase() as 'compra' | 'venda';
         const finalRec = form.invert ? (rec === 'compra' ? 'venda' : 'compra') : rec;
@@ -38,7 +38,7 @@ export class AutomatorService extends OpenIAService {
         form.recomendacao = finalRec;
         form.probabilidade = analyser.probabilidade;
 
-        this.logger.debug(`Form após ajustes: ${JSON.stringify(form)}`);
+        this.automatorLogger.debug(`Form após ajustes: ${JSON.stringify(form)}`);
 
         const response = await this.buyService.store(
           userId,
@@ -46,7 +46,7 @@ export class AutomatorService extends OpenIAService {
           { fromBalanceId, balanceType: type_balance },
         );
 
-        this.logger.debug(`Resposta do buyService.store: ${JSON.stringify(response)}`);
+        this.automatorLogger.debug(`Resposta do buyService.store: ${JSON.stringify(response)}`);
 
         if (response?.funds) {
           const time1 = new Date(response.option.openedAt);
@@ -74,20 +74,20 @@ export class AutomatorService extends OpenIAService {
             },
           };
 
-          this.logger.debug(`Resultado final: ${JSON.stringify(result)}`);
+          this.automatorLogger.debug(`Resultado final: ${JSON.stringify(result)}`);
           return result;
         } else {
-          this.logger.warn(`buyService.store retornou sem fundos: ${JSON.stringify(response)}`);
+          this.automatorLogger.warn(`buyService.store retornou sem fundos: ${JSON.stringify(response)}`);
           return { data: { funds: false } };
         }
       } catch (err) {
-        this.logger.error(`Erro na tentativa ${attempts}:`, err.stack || err);
+        this.automatorLogger.error(`Erro na tentativa ${attempts}:`, err.stack || err);
         await new Promise((r) => setTimeout(r, 200));
         continue;
       }
     }
 
-    this.logger.error('Falhou após múltiplas tentativas');
+    this.automatorLogger.error('Falhou após múltiplas tentativas');
     return { message: 'Consulta inválida após múltiplas tentativas', data: [] };
   }
 }
