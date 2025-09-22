@@ -16,7 +16,50 @@ export class OpenIAService {
   private readonly baseURL = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
   private readonly http: AxiosInstance;
 
- constructor() {
+  // ---------- Limitação de taxa (in-process) ----------
+  private static readonly MAX_CONCURRENCY = 1;      // serializa chamadas
+  private static readonly MIN_GAP_MS = 350;         // espaçamento mínimo entre chamadas
+  private static running = 0;
+  private static queue: Array<() => void> = [];
+  private static lastCallTs = 0;
+
+  private static acquire(): Promise<void> {
+    return new Promise((resolve) => {
+      if (this.running < this.MAX_CONCURRENCY) {
+        this.running++;
+        resolve();
+      } else {
+        this.queue.push(() => {
+          this.running++;
+          resolve();
+        });
+      }
+    });
+  }
+  private static release() {
+    this.running = Math.max(0, this.running - 1);
+    const next = this.queue.shift();
+    if (next) next();
+  }
+
+  private static async pace() {
+    const now = Date.now();
+    const delta = now - this.lastCallTs;
+    if (delta < this.MIN_GAP_MS) {
+      await OpenIAService.sleep(this.MIN_GAP_MS - delta);
+    }
+    this.lastCallTs = Date.now();
+  }
+
+  private static sleep(ms: number) {
+    return new Promise((res) => setTimeout(res, ms));
+  }
+
+  // ---------- Cache simples por imagem (TTL curto) ----------
+  private static cache = new Map<string, { t: number; data: ResponseData }>();
+  private static readonly CACHE_TTL_MS = 8_000; // 8s
+
+  constructor() {
     this.logger.log('Inicializando OpenIAService...');
 
     if (!this.apiKey) {
@@ -44,53 +87,53 @@ export class OpenIAService {
 
     this.logger.debug(`find() chamado. Imagem recebida: ${img}`);
 
+    // cache por imagem
+    const c = OpenIAService.cache.get(img);
+    if (c && Date.now() - c.t < OpenIAService.CACHE_TTL_MS) {
+      this.logger.debug(`Cache hit para ${img}`);
+      return c.data;
+    }
+
     const payload = {
       model: 'gpt-4o-mini',
+      // Quando disponível, ajuda a reduzir tokens extras
+      response_format: { type: 'json_object' as const },
       messages: [
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: `
-IMPORTANT: You are a professional trader tasked with analyzing chart images and providing structured recommendations.
-IMPORTANT: You must ONLY return a valid JSON object with no additional text before or after it.
-
-Analyze the chart image where candles last 5 seconds, evaluating support, resistance, and trend patterns.
-
-Evaluate:
-- Recent price movement patterns
-- Support and resistance levels
-- Volume trends
-- Candle formations
-- Momentum indicators
-
-Return a JSON with:
-- recomendacao: "buy" or "sell"
-- probabilidade: 60-90
-- explicacao: PT-BR, max 30 words
-- entrada: "${entrada}"
-
-IMPORTANT: entrada: "${entrada}", recomendacao: "buy"/"sell", probabilidade: 60-90 only.
-`,
+              text:
+`Retorne APENAS JSON válido.
+Analise a imagem (gráfico 5s) e responda:
+{
+  "recomendacao": "buy"|"sell",
+  "probabilidade": 60-90,
+  "explicacao": "PT-BR, máx 30 palavras",
+  "entrada": "${entrada}"
+}`,
             },
-            { type: 'image_url', image_url: { url: img } },
+            { type: 'image_url', image_url: { url: img, detail: 'low' as const } },
           ],
         },
       ],
       temperature: 0.0,
-      max_tokens: 300,
+      max_tokens: 160, // reduzido para aliviar TPM
     };
 
     this.logger.debug(`Payload enviado à OpenAI: ${JSON.stringify(payload, null, 2)}`);
 
+    await OpenIAService.acquire();
     try {
-      const { data } = await this.http.post('/chat/completions', payload);
+      await OpenIAService.pace(); // respeita gap mínimo
 
-      this.logger.debug(`Resposta bruta da OpenAI: ${JSON.stringify(data, null, 2)}`);
+      const { data } = await this.postWithRetries('/chat/completions', payload);
 
       const decoded: string = data?.choices?.[0]?.message?.content || '';
-      if (!decoded) throw new ServiceUnavailableException('Nenhuma resposta decodificada encontrada da IA.');
+      if (!decoded) {
+        throw new ServiceUnavailableException('Nenhuma resposta decodificada encontrada da IA.');
+      }
 
       this.logger.debug(`Resposta IA (conteúdo): ${decoded}`);
 
@@ -98,29 +141,66 @@ IMPORTANT: entrada: "${entrada}", recomendacao: "buy"/"sell", probabilidade: 60-
 
       this.logger.debug(`JSON final normalizado: ${JSON.stringify(parsed)}`);
 
+      // guarda no cache
+      OpenIAService.cache.set(img, { t: Date.now(), data: parsed });
+
       return parsed;
     } catch (err) {
-      // Log detalhado
       if (axios.isAxiosError(err)) {
         const e = err as AxiosError<any>;
         const status = e.response?.status ?? 502;
         const detail = e.response?.data?.error || e.response?.data || e.message || 'Erro ao chamar API de IA';
-
         this.logger.error(`Erro na solicitação à API de IA (${status}): ${JSON.stringify(detail)}`);
-
-        // Propaga como HttpException com o status correto (ex.: 401)
-        throw new HttpException(
-          {
-            message: 'Erro ao consultar o provedor de IA',
-            detail,
-          },
-          status,
-        );
+        throw new HttpException({ message: 'Erro ao consultar o provedor de IA', detail }, status);
       }
-
       this.logger.error(`Erro inesperado: ${String(err)}`);
       throw new ServiceUnavailableException('Falha inesperada ao consultar a IA.');
+    } finally {
+      OpenIAService.release();
     }
+  }
+
+  private async postWithRetries(path: string, body: any, maxRetries = 4) {
+    let attempt = 0;
+    let lastErr: any = null;
+
+    while (attempt <= maxRetries) {
+      try {
+        return await this.http.post(path, body);
+      } catch (err) {
+        lastErr = err;
+        if (!axios.isAxiosError(err)) throw err;
+
+        const status = err.response?.status ?? 0;
+        const msg = String(err.response?.data?.error || err.response?.data || err.message || '');
+
+        // 429 / 5xx → backoff + retry
+        if (status === 429 || (status >= 500 && status < 600)) {
+          // tenta extrair "Please try again in 280ms"
+          const m = msg.match(/try again in\s+(\d+)ms/i);
+          const suggested = m ? Number(m[1]) : 0;
+
+          // Ou usa Retry-After (segundos)
+          const raHeader = err.response?.headers?.['retry-after'];
+          const raMs = raHeader ? Number(raHeader) * 1000 : 0;
+
+          const base = Math.max(suggested, raMs, 250);
+          const jitter = Math.floor(Math.random() * 150);
+          const backoff = base * Math.pow(2, attempt) + jitter;
+
+          this.logger.warn(`Rate limit/5xx (status ${status}). Retry ${attempt + 1}/${maxRetries} em ${backoff}ms`);
+          await OpenIAService.sleep(backoff);
+
+          attempt++;
+          continue;
+        }
+
+        // Demais erros: não adianta tentar de novo
+        throw err;
+      }
+    }
+
+    throw lastErr;
   }
 
   private static extractValidateAndNormalizeJson(text: string): ResponseData {
