@@ -16,11 +16,16 @@ export class OpenIAService {
   private readonly baseURL = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
   private readonly http: AxiosInstance;
 
-  constructor() {
+ constructor() {
+    this.logger.log('Inicializando OpenIAService...');
+
     if (!this.apiKey) {
-      // Configuração do servidor inválida -> 500
+      this.logger.error('OPENAI_TOKEN ausente no ambiente.');
       throw new InternalServerErrorException('OPENAI_TOKEN ausente no ambiente.');
     }
+
+    this.logger.debug(`Usando baseURL da OpenAI: ${this.baseURL}`);
+
     this.http = axios.create({
       baseURL: this.baseURL,
       timeout: 30_000,
@@ -29,6 +34,8 @@ export class OpenIAService {
         'Authorization': `Bearer ${this.apiKey}`,
       },
     });
+
+    this.logger.log('OpenIAService inicializado com sucesso.');
   }
 
   async find(img: string): Promise<ResponseData> {
