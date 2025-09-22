@@ -50,18 +50,25 @@ export class MarketService {
     });
   }
 
-  // --- helpers para status em tempo-real --- //
+  // --- helpers de disponibilidade --- //
   private safeCanBeBoughtAt(a: any, when: Date): boolean {
     try {
-      return typeof a?.canBeBoughtAt === 'function' ? !!a.canBeBoughtAt(when) : true;
+      if (typeof a?.canBeBoughtAt === 'function') {
+        return !!a.canBeBoughtAt(when);
+      }
+      // se não houver método, não penaliza
+      return true;
     } catch {
+      // erro → trata como indisponível
       return false;
     }
   }
-  private statusByNow(a: { isSuspended: boolean }, when: Date): boolean {
-    // true => SUSPENSO; false => DISPONÍVEL
+
+  // true => SUSPENSO; false => DISPONÍVEL
+  private statusByNow(a: { isSuspended: boolean; canBeBoughtAt?: (d: Date) => boolean }, when: Date): boolean {
     const canNow = this.safeCanBeBoughtAt(a, when);
-    return a.isSuspended || !canNow;
+    const isAvailable = !a.isSuspended && canNow;
+    return !isAvailable;
   }
 
   private mapBlitz(a: BlitzOptionsActive, when: Date): ActiveSummaryDto {
@@ -95,20 +102,18 @@ export class MarketService {
     };
   }
   private mapDigital(u: DigitalOptionsUnderlying): ActiveSummaryDto {
-    // Método do SDK já retorna apenas os disponíveis "at(when)"
     return {
       id: u.activeId,
       ticker: u.name,
-      isSuspended: u.isSuspended, // costuma vir como false nos disponíveis
+      isSuspended: u.isSuspended,
       schedule: this.mapSchedule(u.schedule),
     };
   }
   private mapMargin(u: MarginUnderlying): ActiveSummaryDto {
-    // Método do SDK já retorna apenas os disponíveis "at(when)"
     return {
       id: u.activeId,
       ticker: u.name,
-      isSuspended: u.isSuspended, // idem
+      isSuspended: u.isSuspended,
       schedule: this.mapSchedule(u.schedule),
     };
   }
@@ -125,7 +130,12 @@ export class MarketService {
       case 'blitz': {
         if (!sdk.blitzOptions) throw new BadRequestException('Blitz options não suportado pelo SDK');
         const x = await sdk.blitzOptions();
-        const all = x.getActives().map(a => this.mapBlitz(a, when));
+        const raw = x.getActives();
+        const all = raw.map(a => this.mapBlitz(a, when));
+        raw.slice(0, 5).forEach((a, i) => {
+          const canNow = this.safeCanBeBoughtAt(a as any, when);
+          this.logger.debug(`[listActives][blitz][sample#${i}] id=${a.id} tk=${a.ticker} isSusp=${a.isSuspended} canNow=${canNow}`);
+        });
         const avail = all.filter(a => !a.isSuspended).length;
         this.logger.log(`[listActives] blitz -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
         return all;
@@ -133,7 +143,12 @@ export class MarketService {
       case 'turbo': {
         if (!sdk.turboOptions) throw new BadRequestException('Turbo options não suportado pelo SDK');
         const x = await sdk.turboOptions();
-        const all = x.getActives().map(a => this.mapTurbo(a, when));
+        const raw = x.getActives();
+        const all = raw.map(a => this.mapTurbo(a, when));
+        raw.slice(0, 5).forEach((a, i) => {
+          const canNow = this.safeCanBeBoughtAt(a as any, when);
+          this.logger.debug(`[listActives][turbo][sample#${i}] id=${a.id} tk=${a.ticker} isSusp=${a.isSuspended} canNow=${canNow}`);
+        });
         const avail = all.filter(a => !a.isSuspended).length;
         this.logger.log(`[listActives] turbo -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
         return all;
@@ -141,7 +156,12 @@ export class MarketService {
       case 'binary': {
         if (!sdk.binaryOptions) throw new BadRequestException('Binary options não suportado pelo SDK');
         const x = await sdk.binaryOptions();
-        const all = x.getActives().map(a => this.mapBinary(a, when));
+        const raw = x.getActives();
+        const all = raw.map(a => this.mapBinary(a, when));
+        raw.slice(0, 5).forEach((a, i) => {
+          const canNow = this.safeCanBeBoughtAt(a as any, when);
+          this.logger.debug(`[listActives][binary][sample#${i}] id=${a.id} tk=${a.ticker} isSusp=${a.isSuspended} canNow=${canNow}`);
+        });
         const avail = all.filter(a => !a.isSuspended).length;
         this.logger.log(`[listActives] binary -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
         return all;
