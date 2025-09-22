@@ -50,49 +50,65 @@ export class MarketService {
     });
   }
 
-  private mapBlitz(a: BlitzOptionsActive): ActiveSummaryDto {
+  // --- helpers para status em tempo-real --- //
+  private safeCanBeBoughtAt(a: any, when: Date): boolean {
+    try {
+      return typeof a?.canBeBoughtAt === 'function' ? !!a.canBeBoughtAt(when) : true;
+    } catch {
+      return false;
+    }
+  }
+  private statusByNow(a: { isSuspended: boolean }, when: Date): boolean {
+    // true => SUSPENSO; false => DISPONÍVEL
+    const canNow = this.safeCanBeBoughtAt(a, when);
+    return a.isSuspended || !canNow;
+  }
+
+  private mapBlitz(a: BlitzOptionsActive, when: Date): ActiveSummaryDto {
     return {
       id: a.id,
       ticker: a.ticker,
-      isSuspended: a.isSuspended,
+      isSuspended: this.statusByNow(a as any, when),
       expirationTimes: a.expirationTimes,
       profitCommissionPercent: a.profitCommissionPercent,
       schedule: this.mapSchedule(a.schedule),
     };
   }
-  private mapTurbo(a: TurboOptionsActive): ActiveSummaryDto {
+  private mapTurbo(a: TurboOptionsActive, when: Date): ActiveSummaryDto {
     return {
       id: a.id,
       ticker: a.ticker,
-      isSuspended: a.isSuspended,
+      isSuspended: this.statusByNow(a as any, when),
       expirationTimes: a.expirationTimes,
       profitCommissionPercent: a.profitCommissionPercent,
       schedule: this.mapSchedule(a.schedule),
     };
   }
-  private mapBinary(a: BinaryOptionsActive): ActiveSummaryDto {
+  private mapBinary(a: BinaryOptionsActive, when: Date): ActiveSummaryDto {
     return {
       id: a.id,
       ticker: a.ticker,
-      isSuspended: a.isSuspended,
+      isSuspended: this.statusByNow(a as any, when),
       expirationTimes: a.expirationTimes,
       profitCommissionPercent: a.profitCommissionPercent,
       schedule: this.mapSchedule(a.schedule),
     };
   }
   private mapDigital(u: DigitalOptionsUnderlying): ActiveSummaryDto {
+    // Método do SDK já retorna apenas os disponíveis "at(when)"
     return {
       id: u.activeId,
       ticker: u.name,
-      isSuspended: u.isSuspended,
+      isSuspended: u.isSuspended, // costuma vir como false nos disponíveis
       schedule: this.mapSchedule(u.schedule),
     };
   }
   private mapMargin(u: MarginUnderlying): ActiveSummaryDto {
+    // Método do SDK já retorna apenas os disponíveis "at(when)"
     return {
       id: u.activeId,
       ticker: u.name,
-      isSuspended: u.isSuspended,
+      isSuspended: u.isSuspended, // idem
       schedule: this.mapSchedule(u.schedule),
     };
   }
@@ -103,41 +119,64 @@ export class MarketService {
     const when = at ? new Date(at) : baseNow;
     if (Number.isNaN(when.getTime())) throw new BadRequestException('Parâmetro "at" inválido');
 
+    this.logger.log(`[listActives] IN kind=${kind} at=${when.toISOString()}`);
+
     switch (kind) {
       case 'blitz': {
         if (!sdk.blitzOptions) throw new BadRequestException('Blitz options não suportado pelo SDK');
         const x = await sdk.blitzOptions();
-        return x.getActives().filter(a => a.canBeBoughtAt(when)).map(a => this.mapBlitz(a));
+        const all = x.getActives().map(a => this.mapBlitz(a, when));
+        const avail = all.filter(a => !a.isSuspended).length;
+        this.logger.log(`[listActives] blitz -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
+        return all;
       }
       case 'turbo': {
         if (!sdk.turboOptions) throw new BadRequestException('Turbo options não suportado pelo SDK');
         const x = await sdk.turboOptions();
-        return x.getActives().filter(a => !a.isSuspended).map(a => this.mapTurbo(a));
+        const all = x.getActives().map(a => this.mapTurbo(a, when));
+        const avail = all.filter(a => !a.isSuspended).length;
+        this.logger.log(`[listActives] turbo -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
+        return all;
       }
       case 'binary': {
         if (!sdk.binaryOptions) throw new BadRequestException('Binary options não suportado pelo SDK');
         const x = await sdk.binaryOptions();
-        return x.getActives().filter(a => !a.isSuspended).map(a => this.mapBinary(a));
+        const all = x.getActives().map(a => this.mapBinary(a, when));
+        const avail = all.filter(a => !a.isSuspended).length;
+        this.logger.log(`[listActives] binary -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
+        return all;
       }
       case 'digital': {
         if (!sdk.digitalOptions) throw new BadRequestException('Digital options não suportado pelo SDK');
         const x = await sdk.digitalOptions();
-        return x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapDigital(u));
+        const all = x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapDigital(u));
+        const avail = all.filter(a => !a.isSuspended).length;
+        this.logger.log(`[listActives] digital -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
+        return all;
       }
       case 'margin-forex': {
         if (!sdk.marginForex) throw new BadRequestException('Margin Forex não suportado pelo SDK');
         const x = await sdk.marginForex();
-        return x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapMargin(u));
+        const all = x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapMargin(u));
+        const avail = all.filter(a => !a.isSuspended).length;
+        this.logger.log(`[listActives] margin-forex -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
+        return all;
       }
       case 'margin-cfd': {
         if (!sdk.marginCfd) throw new BadRequestException('Margin CFD não suportado pelo SDK');
         const x = await sdk.marginCfd();
-        return x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapMargin(u));
+        const all = x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapMargin(u));
+        const avail = all.filter(a => !a.isSuspended).length;
+        this.logger.log(`[listActives] margin-cfd -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
+        return all;
       }
       case 'margin-crypto': {
         if (!sdk.marginCrypto) throw new BadRequestException('Margin Crypto não suportado pelo SDK');
         const x = await sdk.marginCrypto();
-        return x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapMargin(u));
+        const all = x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapMargin(u));
+        const avail = all.filter(a => !a.isSuspended).length;
+        this.logger.log(`[listActives] margin-crypto -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
+        return all;
       }
       default:
         throw new BadRequestException('kind inválido');
