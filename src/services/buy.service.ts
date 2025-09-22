@@ -6,7 +6,7 @@ import { BlitzOptionsDirection, BalanceType } from '@tradecodehub/client-sdk-js'
 type AutomatorFormRow = {
   ativo: string | number;
   valor: number;
-  expiration?: number;
+  expiration?: number; // front manda em ms (5_000 | 10_000 | 15_000)
   invert?: boolean;
 };
 type AutomatorForm = AutomatorFormRow & {
@@ -22,6 +22,46 @@ export class BuyService {
     private readonly trade: TradeService,
     private readonly balancesService: BalancesService,
   ) {}
+
+  private normalizeExpirationSeconds(
+    rawFromForm: number | undefined,
+    allowedSeconds: number[] | undefined,
+  ): number {
+    // 1) determinar segundos a partir do valor do form
+    let secondsFromForm: number | undefined = undefined;
+    if (typeof rawFromForm === 'number' && Number.isFinite(rawFromForm)) {
+      // heurística: se for >= 1000 e múltiplo de 5k/10k/15k, é ms vindo do front
+      if (rawFromForm >= 1000) {
+        // pode ser ms; converte para s arredondando
+        secondsFromForm = Math.round(rawFromForm / 1000);
+      } else {
+        // já parecem segundos
+        secondsFromForm = Math.round(rawFromForm);
+      }
+    }
+
+    // 2) se temos lista de permitidos, escolher o melhor
+    const list = Array.isArray(allowedSeconds) ? allowedSeconds.slice().sort((a,b)=>a-b) : [];
+
+    // Se o form pediu 5/10/15 s, usar igual quando existir
+    if (secondsFromForm && list.length) {
+      if (list.includes(secondsFromForm)) return secondsFromForm;
+      // escolhe o mais próximo
+      let best = list[0];
+      let bestDiff = Math.abs(list[0] - secondsFromForm);
+      for (let i = 1; i < list.length; i++) {
+        const d = Math.abs(list[i] - secondsFromForm);
+        if (d < bestDiff) { best = list[i]; bestDiff = d; }
+      }
+      return best;
+    }
+
+    // 3) fallback: se não veio nada do form, pega o primeiro permitido
+    if (list.length) return list[0];
+
+    // 4) último recurso: 5s (muito comum no Blitz)
+    return secondsFromForm || 5;
+  }
 
   async store(
     userId: string,
@@ -40,12 +80,13 @@ export class BuyService {
     this.logger.debug(`[store] SDK obtido para userId=${userId}`);
 
     const balances = await sdk.balances();
-    this.logger.debug(`[store] Balances total=${balances.getBalances().length}`);
+    const allBalances = balances.getBalances();
+    this.logger.debug(`[store] Balances total=${allBalances.length}`);
 
     const balance =
       (opts?.fromBalanceId ? balances.getBalanceById(opts.fromBalanceId) : null) ||
       (opts?.balanceType ? await this.balancesService.findByType(userId, opts.balanceType) : null) ||
-      balances.getBalances()[0];
+      allBalances[0];
 
     if (!balance) {
       this.logger.error(`[store] Nenhum balance disponível para userId=${userId}`);
@@ -79,16 +120,24 @@ export class BuyService {
       `[store] Active escolhido: id=${active.id} tk=${active.ticker} susp=${active.isSuspended} expirations=${JSON.stringify(active.expirationTimes)}`
     );
 
-    if (!active.canBeBoughtAt?.(new Date())) {
-      this.logger.warn(`[store] Active indisponível para compra agora. id=${active.id} tk=${active.ticker}`);
+    // (opcional mas recomendado) pré-check, evita 4119:
+    try {
+      const canNow = typeof active.canBeBoughtAt === 'function' ? !!active.canBeBoughtAt(new Date()) : true;
+      this.logger.debug(`[store] canBeBoughtAt(now)=${canNow}`);
+      if (active.isSuspended || !canNow) {
+        this.logger.warn(`[store] Ativo indisponível agora (isSuspended=${active.isSuspended}, canNow=${canNow}).`);
+        throw new BadRequestException('Ativo indisponível para compra agora');
+      }
+    } catch (e) {
+      this.logger.warn(`[store] canBeBoughtAt lançou erro; tratando como indisponível. err=${(e as any)?.message || e}`);
       throw new BadRequestException('Ativo indisponível para compra agora');
     }
 
-    const expiration = form.expiration ?? active.expirationTimes?.[0];
-    if (!expiration) {
-      this.logger.error(`[store] Sem tempo de expiração disponível. active.id=${active.id}`);
-      throw new BadRequestException('Sem tempo de expiração disponível');
-    }
+    // Normaliza expiração (ms -> s) e casa com lista suportada:
+    const expirationSec = this.normalizeExpirationSeconds(form.expiration, active.expirationTimes);
+    this.logger.debug(
+      `[store] Expiração normalizada: form.expiration=${form.expiration} -> expirationSec=${expirationSec} | allowed=${JSON.stringify(active.expirationTimes)}`
+    );
 
     const dir =
       (form as any).recomendacao === 'compra'
@@ -96,10 +145,11 @@ export class BuyService {
         : BlitzOptionsDirection.Put;
 
     this.logger.debug(
-      `[store] Preparando buy: ativo=${active.id}(${active.ticker}) dir=${form.recomendacao} expiration=${expiration} entrada=${entrada}`
+      `[store] Preparando buy: ativo=${active.id}(${active.ticker}) dir=${form.recomendacao} expirationSec=${expirationSec} entrada=${entrada}`
     );
 
-    const option = await blitz.buy(active, dir, expiration, entrada, balance);
+    // CHAMADA ao provedor
+    const option = await blitz.buy(active, dir, expirationSec, entrada, balance);
 
     const openedAt: Date = option.openedAt ?? new Date();
     const expiredAt: Date =
