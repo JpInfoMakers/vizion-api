@@ -56,18 +56,20 @@ export class MarketService {
       if (typeof a?.canBeBoughtAt === 'function') {
         return !!a.canBeBoughtAt(when);
       }
-      // se não houver método, não penaliza
+      // sem método => não penaliza
       return true;
     } catch {
-      // erro → trata como indisponível
+      // erro => trata como indisponível
       return false;
     }
   }
 
   // true => SUSPENSO; false => DISPONÍVEL
+  // NOVA REGRA (oposto do AND): disponível se (!isSuspended || canNow)
+  // suspenso é o NEG da disponibilidade
   private statusByNow(a: { isSuspended: boolean; canBeBoughtAt?: (d: Date) => boolean }, when: Date): boolean {
     const canNow = this.safeCanBeBoughtAt(a, when);
-    const isAvailable = !a.isSuspended && canNow;
+    const isAvailable = (!a.isSuspended) || canNow;
     return !isAvailable;
   }
 
@@ -102,6 +104,7 @@ export class MarketService {
     };
   }
   private mapDigital(u: DigitalOptionsUnderlying): ActiveSummaryDto {
+    // lista do SDK já vem "availableForTradingAt(when)"
     return {
       id: u.activeId,
       ticker: u.name,
@@ -134,7 +137,7 @@ export class MarketService {
         const all = raw.map(a => this.mapBlitz(a, when));
         raw.slice(0, 5).forEach((a, i) => {
           const canNow = this.safeCanBeBoughtAt(a as any, when);
-          this.logger.debug(`[listActives][blitz][sample#${i}] id=${a.id} tk=${a.ticker} isSusp=${a.isSuspended} canNow=${canNow}`);
+          this.logger.debug(`[listActives][blitz][sample#${i}] id=${a.id} tk=${a.ticker} isSusp(raw)=${a.isSuspended} canNow=${canNow}`);
         });
         const avail = all.filter(a => !a.isSuspended).length;
         this.logger.log(`[listActives] blitz -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
@@ -147,7 +150,7 @@ export class MarketService {
         const all = raw.map(a => this.mapTurbo(a, when));
         raw.slice(0, 5).forEach((a, i) => {
           const canNow = this.safeCanBeBoughtAt(a as any, when);
-          this.logger.debug(`[listActives][turbo][sample#${i}] id=${a.id} tk=${a.ticker} isSusp=${a.isSuspended} canNow=${canNow}`);
+          this.logger.debug(`[listActives][turbo][sample#${i}] id=${a.id} tk=${a.ticker} isSusp(raw)=${a.isSuspended} canNow=${canNow}`);
         });
         const avail = all.filter(a => !a.isSuspended).length;
         this.logger.log(`[listActives] turbo -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
@@ -160,7 +163,7 @@ export class MarketService {
         const all = raw.map(a => this.mapBinary(a, when));
         raw.slice(0, 5).forEach((a, i) => {
           const canNow = this.safeCanBeBoughtAt(a as any, when);
-          this.logger.debug(`[listActives][binary][sample#${i}] id=${a.id} tk=${a.ticker} isSusp=${a.isSuspended} canNow=${canNow}`);
+          this.logger.debug(`[listActives][binary][sample#${i}] id=${a.id} tk=${a.ticker} isSusp(raw)=${a.isSuspended} canNow=${canNow}`);
         });
         const avail = all.filter(a => !a.isSuspended).length;
         this.logger.log(`[listActives] binary -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
