@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { OpenIAService, ResponseData } from './openia.service';
 import { BuyService } from './buy.service';
 import { BalanceType } from '@tradecodehub/client-sdk-js';
@@ -16,7 +16,6 @@ export class AutomatorService extends OpenIAService {
       fromBalanceId,
     }: { img: string; form: any; type_balance?: BalanceType; fromBalanceId?: number },
   ) {
-    if (!form?.[0]?.ativo) throw new BadRequestException('Dados inválidos. Verifique os campos enviados.');
 
     let attempts = 0;
     const maxAttempts = 5;
@@ -27,10 +26,10 @@ export class AutomatorService extends OpenIAService {
 
         const rec = (analyser.recomendacao.toLowerCase() as 'compra'|'venda');
         const finalRec =
-          form[0]?.invert ? (rec === 'compra' ? 'venda' : 'compra') : rec;
+          form.invert ? (rec === 'compra' ? 'venda' : 'compra') : rec;
 
-        (form as any).recomendacao = finalRec;
-        (form as any).probabilidade = analyser.probabilidade;
+        form.recomendacao = finalRec;
+        form.probabilidade = analyser.probabilidade;
 
         const response = await this.buyService.store(
           userId,

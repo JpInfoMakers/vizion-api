@@ -9,7 +9,7 @@ type AutomatorFormRow = {
   expiration?: number;
   invert?: boolean;
 };
-type AutomatorForm = AutomatorFormRow[] & {
+type AutomatorForm = AutomatorFormRow & {
   recomendacao?: 'compra' | 'venda';
   probabilidade?: number;
 };
@@ -28,16 +28,12 @@ export class BuyService {
     form: AutomatorForm,
     opts?: { fromBalanceId?: number; balanceType?: BalanceType },
   ) {
-    if (!Array.isArray(form) || !form[0]?.ativo || !form[0]?.valor) {
-      throw new BadRequestException('Form inválido');
-    }
 
-    const entrada = Number(form[0].valor);
+    const entrada = Number(form.valor);
     if (!(entrada > 0)) throw new BadRequestException('Valor de entrada inválido');
 
     const sdk = await this.trade.getClientForUser(userId);
 
-    // ---- balance ----
     const balances = await sdk.balances();
     const balance =
       (opts?.fromBalanceId ? balances.getBalanceById(opts.fromBalanceId) : null) ||
@@ -47,12 +43,11 @@ export class BuyService {
     if (!balance) throw new BadRequestException('Nenhum balance disponível');
     if (!(balance.amount > entrada)) return { funds: false };
 
-    // ---- blitz options ----
     const blitz = await sdk.blitzOptions();
     const actives = blitz.getActives();
     if (!actives?.length) throw new BadRequestException('Nenhum ativo disponível');
 
-    const target = form[0].ativo;
+    const target = form.ativo;
     const active =
       actives.find((a: any) => `${a.id}` === `${target}`) ||
       actives.find((a: any) => (a.ticker || '').toLowerCase() === String(target).toLowerCase()) ||
@@ -63,7 +58,7 @@ export class BuyService {
       throw new BadRequestException('Ativo indisponível para compra agora');
     }
 
-    const expiration = form[0].expiration ?? active.expirationTimes?.[0];
+    const expiration = form.expiration ?? active.expirationTimes?.[0];
     if (!expiration) throw new BadRequestException('Sem tempo de expiração disponível');
 
     const dir =
@@ -73,7 +68,6 @@ export class BuyService {
 
     const option = await blitz.buy(active, dir, expiration, entrada, balance);
 
-    // Campos compatíveis com o SDK que você enviou
     const openedAt: Date = option.openedAt ?? new Date();
     const expiredAt: Date =
       option.expiredAt ?? new Date(openedAt.getTime() + 60_000);

@@ -61,10 +61,6 @@ export class OrchestratorService {
   ) {
     const { img, form, type_balance, fromBalanceId } = payload;
 
-    if (!Array.isArray(form) || !form?.[0]?.ativo) {
-      throw new BadRequestException('Dados inválidos. Verifique os campos do formulário.');
-    }
-
     return this.automatorService.start(userId, {
       img,
       form,
