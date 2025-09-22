@@ -1,69 +1,84 @@
-- name: "Deploy via SSH"
-  uses: appleboy/ssh-action@v1.2.0
-  with:
-    host: ${{ secrets.HOSTINGER_HOST }}
-    username: ${{ secrets.HOSTINGER_USER }}
-    key: ${{ secrets.HOSTINGER_SSH_KEY }}
-    script_stop: true
-    script: |
-      set -euo pipefail
+name: Deploy Vizion API (Hostinger)
 
-      APP_DIR="/root/vizion-api"
-      ENV_RUNTIME="${APP_DIR}/.env.runtime"
+on:
+  push:
+    branches: ["main"]
 
-      echo "[1/5] Atualizando código"
-      cd "$APP_DIR"
-      git fetch --all --prune
-      git reset --hard origin/main
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-      echo "[2/5] Escrevendo .env.runtime (override do .env do repo)"
-      cat > "$ENV_RUNTIME" <<'EOF'
-# ====== RUNTIME (produção) ======
-NODE_ENV=production
-PORT=3333
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-# ====== DB ======
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=${{ secrets.DB_USER }}
-DB_PASS=${{ secrets.DB_PASS }}
-DB_NAME=${{ secrets.DB_NAME }}
+      - name: Add Host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.HOSTINGER_HOST }}" >> ~/.ssh/known_hosts
 
-# ====== JWT ======
-JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
-JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
-JWT_ACCESS_TTL=15m
-JWT_REFRESH_TTL=7d
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_HOST }}
+          username: ${{ secrets.HOSTINGER_USER }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
 
-# ====== TRADE/BROKER (fixos) ======
-TRADE_WS_URL=wss://ws.trade.casatrade.com/echo/websocket
-TRADE_API_URL=https://api.trade.casatrade.com/v1
-TRADE_APP_ID=303
-BROKER_LOGIN_URL=https://api.trade.casatrade.com/v2/login
-BROKER_REGISTER_URL=https://api.trade.casatrade.com/v3/users/register
+            APP_DIR="/root/vizion-api"
+            ENV_RUNTIME="${APP_DIR}/.env.runtime"
 
-# ====== OPENAI ======
-OPENAI_TOKEN=${{ secrets.OPENAI_TOKEN }}
-OPENAI_BASE_URL=https://api.openai.com/v1/
-EOF
-      chmod 600 "$ENV_RUNTIME"
+            echo "[1/5] Atualizando código"
+            cd "$APP_DIR"
+            git fetch --all --prune
+            git reset --hard origin/main
 
-      echo "[3/5] Instalando deps e build"
-      if [ -f package-lock.json ]; then
-        npm ci --omit=dev
-      else
-        npm install --omit=dev
-      fi
-      npm run build
+            echo "[2/5] Escrevendo .env.runtime (override do .env do repo)"
+            cat > "$ENV_RUNTIME" <<'EOF'
+            NODE_ENV=production
+            PORT=3333
 
-      echo "[4/5] PM2: restart com .env.runtime"
-      pm2 stop vizion-api || true
-      pm2 delete vizion-api || true
+            DB_HOST=localhost
+            DB_PORT=5432
+            DB_USER=vizion
+            DB_PASS=${{ secrets.DB_PASS }}
+            DB_NAME=vizion
 
-      DOTENV_CONFIG_PATH="$ENV_RUNTIME" PORT=3333 NODE_ENV=production \
-      pm2 start dist/main.js --name vizion-api
 
-      echo "[5/5] Salvando estado do PM2"
-      pm2 save
+            JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
+            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+            JWT_ACCESS_TTL=15m
+            JWT_REFRESH_TTL=7d
 
-      echo "✅ Deploy finalizado"
+            TRADE_WS_URL=wss://ws.trade.casatrade.com/echo/websocket
+            TRADE_API_URL=https://api.trade.casatrade.com/v1
+            TRADE_APP_ID=303
+            BROKER_LOGIN_URL=https://api.trade.casatrade.com/v2/login
+            BROKER_REGISTER_URL=https://api.trade.casatrade.com/v3/users/register
+
+            OPENAI_TOKEN=${{ secrets.OPENAI_TOKEN }}
+            OPENAI_BASE_URL=https://api.openai.com/v1/
+            EOF
+            chmod 600 "$ENV_RUNTIME"
+
+            echo "[3/5] Instalando deps e build"
+            if [ -f package-lock.json ]; then
+              npm ci --omit=dev
+            else
+              npm install --omit=dev
+            fi
+            npm run build
+
+            echo "[4/5] PM2: restart com .env.runtime"
+            pm2 stop vizion-api || true
+            pm2 delete vizion-api || true
+
+            DOTENV_CONFIG_PATH="$ENV_RUNTIME" PORT=3333 NODE_ENV=production \
+            pm2 start dist/main.js --name vizion-api
+
+            echo "[5/5] Salvando estado do PM2"
+            pm2 save
+
+            echo "✅ Deploy finalizado"
