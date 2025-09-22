@@ -27,6 +27,7 @@
     "class-validator": "^0.14.2",
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.5",
+    "dotenv-flow": "^4.1.0",
     "fastify-sse-v2": "^4.2.1",
     "module-alias": "^2.2.3",
     "multer": "^2.0.2",
