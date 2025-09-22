@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, HttpException, ServiceUnavailableException, InternalServerErrorException } from '@nestjs/common';
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import { format } from 'date-fns';
 
@@ -18,7 +18,8 @@ export class OpenIAService {
 
   constructor() {
     if (!this.apiKey) {
-      throw new Error('OPENAI_TOKEN ausente no ambiente.');
+      // Configuração do servidor inválida -> 500
+      throw new InternalServerErrorException('OPENAI_TOKEN ausente no ambiente.');
     }
     this.http = axios.create({
       baseURL: this.baseURL,
@@ -82,7 +83,7 @@ IMPORTANT: entrada: "${entrada}", recomendacao: "buy"/"sell", probabilidade: 60-
       this.logger.debug(`Resposta bruta da OpenAI: ${JSON.stringify(data, null, 2)}`);
 
       const decoded: string = data?.choices?.[0]?.message?.content || '';
-      if (!decoded) throw new Error('Nenhuma resposta decodificada encontrada.');
+      if (!decoded) throw new ServiceUnavailableException('Nenhuma resposta decodificada encontrada da IA.');
 
       this.logger.debug(`Resposta IA (conteúdo): ${decoded}`);
 
@@ -92,12 +93,26 @@ IMPORTANT: entrada: "${entrada}", recomendacao: "buy"/"sell", probabilidade: 60-
 
       return parsed;
     } catch (err) {
-      const e = err as AxiosError<any>;
-      const status = e.response?.status;
-      const detail = e.response?.data?.error || e.response?.data || e.message;
+      // Log detalhado
+      if (axios.isAxiosError(err)) {
+        const e = err as AxiosError<any>;
+        const status = e.response?.status ?? 502;
+        const detail = e.response?.data?.error || e.response?.data || e.message || 'Erro ao chamar API de IA';
 
-      this.logger.error(`Erro na chamada OpenAI (${status}): ${JSON.stringify(detail)}`);
-      throw err;
+        this.logger.error(`Erro na solicitação à API de IA (${status}): ${JSON.stringify(detail)}`);
+
+        // Propaga como HttpException com o status correto (ex.: 401)
+        throw new HttpException(
+          {
+            message: 'Erro ao consultar o provedor de IA',
+            detail,
+          },
+          status,
+        );
+      }
+
+      this.logger.error(`Erro inesperado: ${String(err)}`);
+      throw new ServiceUnavailableException('Falha inesperada ao consultar a IA.');
     }
   }
 
