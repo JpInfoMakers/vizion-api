@@ -38,7 +38,7 @@ async function bootstrap() {
   const atq = app.get(AccessTokenQueryGuard);
   app.useGlobalGuards(atq);
 
-  const port = Number(process.env.PORT || 3333);
+  const port = Number(3333);
   await app.listen(port, '0.0.0.0');
   logger.log(`🚀 App rodando em http://localhost:${port} (NODE_ENV=${process.env.NODE_ENV || 'dev'})`);
 }
