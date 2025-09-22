@@ -50,61 +50,38 @@ export class MarketService {
     });
   }
 
-  // --- helpers de disponibilidade --- //
-  private safeCanBeBoughtAt(a: any, when: Date): boolean {
-    try {
-      if (typeof a?.canBeBoughtAt === 'function') {
-        return !!a.canBeBoughtAt(when);
-      }
-      // sem método => não penaliza
-      return true;
-    } catch {
-      // erro => trata como indisponível
-      return false;
-    }
-  }
-
-  // true => SUSPENSO; false => DISPONÍVEL
-  // NOVA REGRA (oposto do AND): disponível se (!isSuspended || canNow)
-  // suspenso é o NEG da disponibilidade
-  private statusByNow(a: { isSuspended: boolean; canBeBoughtAt?: (d: Date) => boolean }, when: Date): boolean {
-    const canNow = this.safeCanBeBoughtAt(a, when);
-    const isAvailable = (!a.isSuspended) || canNow;
-    return !isAvailable;
-  }
-
-  private mapBlitz(a: BlitzOptionsActive, when: Date): ActiveSummaryDto {
+  // ---------- Mapeadores (status direto do SDK, sem formatação) ----------
+  private mapBlitz(a: BlitzOptionsActive): ActiveSummaryDto {
     return {
       id: a.id,
       ticker: a.ticker,
-      isSuspended: this.statusByNow(a as any, when),
+      isSuspended: a.isSuspended, // <- sem transformação
       expirationTimes: a.expirationTimes,
       profitCommissionPercent: a.profitCommissionPercent,
       schedule: this.mapSchedule(a.schedule),
     };
   }
-  private mapTurbo(a: TurboOptionsActive, when: Date): ActiveSummaryDto {
+  private mapTurbo(a: TurboOptionsActive): ActiveSummaryDto {
     return {
       id: a.id,
       ticker: a.ticker,
-      isSuspended: this.statusByNow(a as any, when),
+      isSuspended: a.isSuspended,
       expirationTimes: a.expirationTimes,
       profitCommissionPercent: a.profitCommissionPercent,
       schedule: this.mapSchedule(a.schedule),
     };
   }
-  private mapBinary(a: BinaryOptionsActive, when: Date): ActiveSummaryDto {
+  private mapBinary(a: BinaryOptionsActive): ActiveSummaryDto {
     return {
       id: a.id,
       ticker: a.ticker,
-      isSuspended: this.statusByNow(a as any, when),
+      isSuspended: a.isSuspended,
       expirationTimes: a.expirationTimes,
       profitCommissionPercent: a.profitCommissionPercent,
       schedule: this.mapSchedule(a.schedule),
     };
   }
   private mapDigital(u: DigitalOptionsUnderlying): ActiveSummaryDto {
-    // lista do SDK já vem "availableForTradingAt(when)"
     return {
       id: u.activeId,
       ticker: u.name,
@@ -133,12 +110,8 @@ export class MarketService {
       case 'blitz': {
         if (!sdk.blitzOptions) throw new BadRequestException('Blitz options não suportado pelo SDK');
         const x = await sdk.blitzOptions();
-        const raw = x.getActives();
-        const all = raw.map(a => this.mapBlitz(a, when));
-        raw.slice(0, 5).forEach((a, i) => {
-          const canNow = this.safeCanBeBoughtAt(a as any, when);
-          this.logger.debug(`[listActives][blitz][sample#${i}] id=${a.id} tk=${a.ticker} isSusp(raw)=${a.isSuspended} canNow=${canNow}`);
-        });
+        const raw = x.getActives(); // sem filtro
+        const all = raw.map(a => this.mapBlitz(a));
         const avail = all.filter(a => !a.isSuspended).length;
         this.logger.log(`[listActives] blitz -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
         return all;
@@ -146,12 +119,8 @@ export class MarketService {
       case 'turbo': {
         if (!sdk.turboOptions) throw new BadRequestException('Turbo options não suportado pelo SDK');
         const x = await sdk.turboOptions();
-        const raw = x.getActives();
-        const all = raw.map(a => this.mapTurbo(a, when));
-        raw.slice(0, 5).forEach((a, i) => {
-          const canNow = this.safeCanBeBoughtAt(a as any, when);
-          this.logger.debug(`[listActives][turbo][sample#${i}] id=${a.id} tk=${a.ticker} isSusp(raw)=${a.isSuspended} canNow=${canNow}`);
-        });
+        const raw = x.getActives(); // sem filtro
+        const all = raw.map(a => this.mapTurbo(a));
         const avail = all.filter(a => !a.isSuspended).length;
         this.logger.log(`[listActives] turbo -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
         return all;
@@ -159,12 +128,8 @@ export class MarketService {
       case 'binary': {
         if (!sdk.binaryOptions) throw new BadRequestException('Binary options não suportado pelo SDK');
         const x = await sdk.binaryOptions();
-        const raw = x.getActives();
-        const all = raw.map(a => this.mapBinary(a, when));
-        raw.slice(0, 5).forEach((a, i) => {
-          const canNow = this.safeCanBeBoughtAt(a as any, when);
-          this.logger.debug(`[listActives][binary][sample#${i}] id=${a.id} tk=${a.ticker} isSusp(raw)=${a.isSuspended} canNow=${canNow}`);
-        });
+        const raw = x.getActives(); // sem filtro
+        const all = raw.map(a => this.mapBinary(a));
         const avail = all.filter(a => !a.isSuspended).length;
         this.logger.log(`[listActives] binary -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
         return all;
@@ -172,6 +137,7 @@ export class MarketService {
       case 'digital': {
         if (!sdk.digitalOptions) throw new BadRequestException('Digital options não suportado pelo SDK');
         const x = await sdk.digitalOptions();
+        // O método already filtra "availableForTradingAt(when)"; ainda assim mantemos o status do SDK.
         const all = x.getUnderlyingsAvailableForTradingAt(when).map(u => this.mapDigital(u));
         const avail = all.filter(a => !a.isSuspended).length;
         this.logger.log(`[listActives] digital -> total=${all.length} disponiveis=${avail} suspensos=${all.length - avail}`);
