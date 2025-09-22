@@ -12,7 +12,7 @@ jobs:
       - name: "Checkout"
         uses: actions/checkout@v4
 
-      - name: "Add Hostinger to known_hosts (SSH)"
+      - name: "Add Host to known_hosts"
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H "${{ secrets.HOSTINGER_HOST }}" >> ~/.ssh/known_hosts
@@ -27,35 +27,23 @@ jobs:
           script: |
             set -euo pipefail
 
-            # >>> AJUSTE O CAMINHO DO PROJETO NA VPS AQUI <<<
-            APP_DIR="/home/${USER}/apps/vizion-api"
-            SECRETS_DIR="/home/${USER}/secrets"
-            ENV_FILE="${SECRETS_DIR}/vizion.env"
+            APP_DIR="/root/vizion-api"
 
-            echo "[1/4] Preparando pastas"
-            mkdir -p "$SECRETS_DIR" "$APP_DIR"
-            chmod 700 "$SECRETS_DIR"
-
-            echo "[2/4] Gravando env de runtime (dos GitHub Secrets)"
-            # Adicione aqui quaisquer outras variáveis que forem necessárias
-            cat > "$ENV_FILE" << 'EOF'
-            OPENAI_TOKEN=${{ secrets.OPENAI_TOKEN }}
-            OPENAI_BASE_URL=${{ secrets.OPENAI_BASE_URL }}
-            EOF
-            chmod 600 "$ENV_FILE"
-
-            echo "[3/4] Atualizando código e build"
+            echo "[1/4] Atualizando código"
             cd "$APP_DIR"
-
-            git fetch --all
+            git fetch --all --prune
             git reset --hard origin/main
-            npm ci
+
+            echo "[2/4] Instalando deps e build"
+            if [ -f package-lock.json ]; then
+              npm ci
+            else
+              npm install
+            fi
             npm run build
 
-            echo "[4/4] Iniciando PM2 com env atualizado (service: vizion)"
-            set -a
-            . "$ENV_FILE"
-            set +a
-
-            pm2 start ecosystem.config.js --only vizion --update-env
+            echo "[3/4] Ciclo PM2"
+            pm2 stop vizion-api || true
+            pm2 delete vizion-api || true
+            pm2 start ecosystem.config.js --only vizion-api --update-env
             pm2 save
