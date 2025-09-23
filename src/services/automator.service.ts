@@ -71,6 +71,8 @@ export class AutomatorService extends OpenIAService {
               price: response.option.openQuoteValue,
               spreed: response.pair.profitCommissionPercent,
               funds: response.funds,
+              option_id: response.option.id,
+              payout_percent: response.pair.profitCommissionPercent ?? 0,
             },
           };
 

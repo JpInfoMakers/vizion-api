@@ -6,7 +6,7 @@ import { BlitzOptionsDirection, BalanceType } from '@tradecodehub/client-sdk-js'
 type AutomatorFormRow = {
   ativo: string | number;
   valor: number;
-  expiration?: number; // front manda em ms (5_000 | 10_000 | 15_000)
+  expiration?: number;
   invert?: boolean;
 };
 type AutomatorForm = AutomatorFormRow & {
